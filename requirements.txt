@@ -1,0 +1,9 @@
+pip install -r requirements.txtfastapi
+uvicorn
+pandas
+numpy
+scikit-learn
+nltk
+Sastrawi
+fuzzywuzzy
+python-Levenshtein

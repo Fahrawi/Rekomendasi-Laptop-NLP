@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekomendasi Laptop</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .search-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .search-form input {
+            flex: 2;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+        .search-form select {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: white;
+        }
+        .search-form button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-form button:hover {
+            background-color: #0056b3;
+        }
+        .loading {
+            text-align: center;
+            font-style: italic;
+            color: #888;
+            margin: 20px;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .category-recommended {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .category-mixed {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .category-minimum {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+        .footer-note {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Rekomendasi Laptop</h1>
+        <div class="search-form">
+            <input type="text" id="query" placeholder="Contoh: laptop asus rog 16gb ram buat spiderman remastered" />
+            <label for="limit" style="margin-left: 10px;">Jumlah:</label>
+            <select id="limit">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <button onclick="search()">Cari Laptop</button>
+        </div>
+        <div id="resultArea">
+            <!-- Hasil akan ditampilkan di sini -->
+        </div>
+    </div>
+
+    <script>
+        // Ganti URL ini dengan alamat API FastAPI Anda jika berbeda
+        const API_URL = 'http://localhost:8000/recommend';
+
+        async function search() {
+            const query = document.getElementById('query').value.trim();
+            const limit = document.getElementById('limit').value;
+            if (!query) {
+                alert('Silakan masukkan query pencarian.');
+                return;
+            }
+
+            const resultArea = document.getElementById('resultArea');
+            resultArea.innerHTML = '<div class="loading">Memuat rekomendasi...</div>';
+
+            try {
+                const url = `${API_URL}?query=${encodeURIComponent(query)}&limit=${limit}`;
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    if (!data.data || data.data.length === 0) {
+                        resultArea.innerHTML = '<div class="error">Tidak ada rekomendasi laptop yang ditemukan.</div>';
+                        return;
+                    }
+                    displayResults(data.data);
+                } else {
+                    throw new Error(data.message || 'Kesalahan tidak diketahui');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                resultArea.innerHTML = `<div class="error">Gagal memuat data: ${error.message}</div>`;
+            }
+        }
+
+        function displayResults(laptops) {
+            const resultArea = document.getElementById('resultArea');
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Brand</th>
+                            <th>Model</th>
+                            <th>CPU</th>
+                            <th>GPU</th>
+                            <th>RAM (GB)</th>
+                            <th>Storage (GB)</th>
+                            <th>Storage Type</th>
+                            <th>Harga (Rp)</th>
+                            <th>Kategori</th>
+                            <th>Match Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            for (const laptop of laptops) {
+                let categoryClass = '';
+                if (laptop.Category === 'Recommended') categoryClass = 'category-recommended';
+                else if (laptop.Category === 'Mixed') categoryClass = 'category-mixed';
+                else if (laptop.Category === 'Minimum') categoryClass = 'category-minimum';
+
+                // Periksa apakah harga valid, jika NaN atau null, tampilkan '-'
+                const price = (laptop.Final_Price && !isNaN(laptop.Final_Price)) ? formatRupiah(laptop.Final_Price) : '-';
+                const storageType = laptop.Storage_type ? escapeHtml(laptop.Storage_type) : '-';
+                const matchScore = (laptop.Match_Score && !isNaN(laptop.Match_Score)) ? laptop.Match_Score.toFixed(2) : '-';
+
+                html += `
+                    <tr class="${categoryClass}">
+                        <td>${escapeHtml(laptop.Brand)}</td>
+                        <td>${escapeHtml(laptop.Model)}</td>
+                        <td>${escapeHtml(laptop.CPU)}</td>
+                        <td>${escapeHtml(laptop.GPU)}</td>
+                        <td>${laptop.RAM}</td>
+                        <td>${laptop.Storage}</td>
+                        <td>${storageType}</td>
+                        <td>${price}</td>
+                        <td>${escapeHtml(laptop.Category)}</td>
+                        <td>${matchScore}</td>
+                    </tr>
+                `;
+            }
+            html += `
+                    </tbody>
+                </table>
+                <div class="footer-note">Menampilkan ${laptops.length} laptop</div>
+            `;
+            resultArea.innerHTML = html;
+        }
+
+        function formatRupiah(amount) {
+            return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+    </script>
+</body>
+</html>
