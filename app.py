@@ -5,8 +5,6 @@ import traceback
 import pandas as pd
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional, Union
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'scripts'))
@@ -21,13 +19,14 @@ from scripts.build_bigram_trigram_kb import build_bigram_trigram_kb
 from scripts.build_abbrev_alt_kb import build_abbrev_alt_kb
 from scripts.build_brand_models_kb import build_brand_models_kb
 from src.recommender_system import get_laptop_recommendations_with_intent
+from src.nlp_pipeline import nlp_pipeline_fuzzy
 
 app = FastAPI(title="Laptop Recommendation System API", version="1.0")
 
-# CORS middleware - izinkan akses dari frontend di localhost:3000
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # atau ["*"] untuk sementara
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # tambahkan domain lain jika perlu
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -91,6 +90,20 @@ async def recommend(
                                    series_games, brand_models_mapping]):
             raise HTTPException(status_code=503, detail="Data belum siap. Silakan coba lagi nanti.")
 
+        # Jalankan pipeline NLP untuk mendapatkan metadata (deteksi entity)
+        pipeline_meta = nlp_pipeline_fuzzy(
+            query,
+            min_req_df['App'].tolist(),
+            laptop_df['Model'].tolist(),
+            laptop_df['Brand'].unique().tolist(),
+            unique_word_kb,
+            game_abbreviations_kb,
+            game_alt_titles_kb,
+            series_abbreviations,
+            bigram_unique_kb
+        )
+
+        # Dapatkan rekomendasi
         result_df = get_laptop_recommendations_with_intent(
             user_query=query,
             laptop_df=laptop_df,
@@ -109,25 +122,34 @@ async def recommend(
             brand_models_mapping=brand_models_mapping
         )
 
+        # Konversi DataFrame ke list of dict
         if result_df is None or result_df.empty:
-            return {"status": "success", "data": [], "message": "Tidak ada rekomendasi laptop untuk query tersebut."}
+            records = []
+        else:
+            # Rename kolom agar sesuai dengan frontend
+            result_df = result_df.rename(columns={
+                'Final Price': 'Final_Price',
+                'Storage type': 'Storage_type'
+            })
+            records = result_df.head(limit).to_dict(orient='records')
 
-        # Rename kolom agar lebih rapi di JSON
-        result_df = result_df.rename(columns={
-            'Final Price': 'Final_Price',
-            'Storage type': 'Storage_type'
-        })
-
-        # Batasi jumlah data
-        limited_df = result_df.head(limit)
-
-        # Konversi ke list of dict
-        records = limited_df.to_dict(orient='records')
+        # Format budget untuk tampilan (opsional)
+        budget = pipeline_meta['budget']
+        budget_display = None
+        if budget is not None:
+            if isinstance(budget, tuple):
+                budget_display = f"{budget[0]:,} - {budget[1]:,}"
+            else:
+                budget_display = f"{budget:,}"
 
         return {
             "status": "success",
             "data": records,
-            "total_found": len(result_df)
+            "total_found": len(result_df) if result_df is not None else 0,
+            "detected_games": pipeline_meta['found_games'],
+            "detected_laptops": pipeline_meta['found_laptops'],
+            "detected_budget": budget_display,
+            "detected_ram": pipeline_meta['ram']
         }
 
     except HTTPException:

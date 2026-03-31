@@ -56,6 +56,14 @@
         .search-form button:hover {
             background-color: #0056b3;
         }
+        .detected-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #495057;
+        }
         .loading {
             text-align: center;
             font-style: italic;
@@ -114,13 +122,13 @@
             </select>
             <button onclick="search()">Cari Laptop</button>
         </div>
+        <div id="detectedInfo" class="detected-info" style="display: none;"></div>
         <div id="resultArea">
             <!-- Hasil akan ditampilkan di sini -->
         </div>
     </div>
 
     <script>
-        // Ganti URL ini dengan alamat API FastAPI Anda jika berbeda
         const API_URL = 'http://localhost:8000/recommend';
 
         async function search() {
@@ -132,7 +140,9 @@
             }
 
             const resultArea = document.getElementById('resultArea');
+            const detectedInfo = document.getElementById('detectedInfo');
             resultArea.innerHTML = '<div class="loading">Memuat rekomendasi...</div>';
+            detectedInfo.style.display = 'none';
 
             try {
                 const url = `${API_URL}?query=${encodeURIComponent(query)}&limit=${limit}`;
@@ -144,6 +154,27 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
+                    // Tampilkan info deteksi
+                    let infoHtml = '';
+                    if (data.detected_games && data.detected_games.length > 0) {
+                        infoHtml += `<strong>🎮 Game terdeteksi:</strong> ${data.detected_games.join(', ')}<br>`;
+                    }
+                    if (data.detected_laptops && data.detected_laptops.length > 0) {
+                        infoHtml += `<strong>💻 Laptop/Brand terdeteksi:</strong> ${data.detected_laptops.join(', ')}<br>`;
+                    }
+                    if (data.detected_budget) {
+                        infoHtml += `<strong>💰 Budget terdeteksi:</strong> Rp ${data.detected_budget}<br>`;
+                    }
+                    if (data.detected_ram && data.detected_ram.length > 0) {
+                        infoHtml += `<strong>⚡ RAM terdeteksi:</strong> ${data.detected_ram.join(', ')} GB<br>`;
+                    }
+                    if (infoHtml) {
+                        detectedInfo.innerHTML = infoHtml;
+                        detectedInfo.style.display = 'block';
+                    } else {
+                        detectedInfo.style.display = 'none';
+                    }
+
                     if (!data.data || data.data.length === 0) {
                         resultArea.innerHTML = '<div class="error">Tidak ada rekomendasi laptop yang ditemukan.</div>';
                         return;
@@ -161,7 +192,7 @@
         function displayResults(laptops) {
             const resultArea = document.getElementById('resultArea');
             let html = `
-                <table>
+                 <table>
                     <thead>
                         <tr>
                             <th>Brand</th>
@@ -184,7 +215,6 @@
                 else if (laptop.Category === 'Mixed') categoryClass = 'category-mixed';
                 else if (laptop.Category === 'Minimum') categoryClass = 'category-minimum';
 
-                // Periksa apakah harga valid, jika NaN atau null, tampilkan '-'
                 const price = (laptop.Final_Price && !isNaN(laptop.Final_Price)) ? formatRupiah(laptop.Final_Price) : '-';
                 const storageType = laptop.Storage_type ? escapeHtml(laptop.Storage_type) : '-';
                 const matchScore = (laptop.Match_Score && !isNaN(laptop.Match_Score)) ? laptop.Match_Score.toFixed(2) : '-';
