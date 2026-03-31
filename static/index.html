@@ -64,6 +64,25 @@
             font-size: 0.9em;
             color: #495057;
         }
+        .requirements, .selected-specs {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .game-req, .spec-item {
+            background: #f8f9fa;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .game-req h4 {
+            margin: 0 0 8px 0;
+            color: #007bff;
+        }
+        .req-row, .spec-row {
+            font-size: 0.85em;
+            margin: 5px 0;
+        }
         .loading {
             text-align: center;
             font-style: italic;
@@ -106,6 +125,10 @@
             font-size: 0.9em;
             color: #666;
         }
+        .spec-title {
+            font-weight: bold;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -123,9 +146,9 @@
             <button onclick="search()">Cari Laptop</button>
         </div>
         <div id="detectedInfo" class="detected-info" style="display: none;"></div>
-        <div id="resultArea">
-            <!-- Hasil akan ditampilkan di sini -->
-        </div>
+        <div id="requirementsArea" class="requirements" style="display: none;"></div>
+        <div id="selectedSpecsArea" class="selected-specs" style="display: none;"></div>
+        <div id="resultArea"></div>
     </div>
 
     <script>
@@ -141,8 +164,12 @@
 
             const resultArea = document.getElementById('resultArea');
             const detectedInfo = document.getElementById('detectedInfo');
+            const requirementsArea = document.getElementById('requirementsArea');
+            const selectedSpecsArea = document.getElementById('selectedSpecsArea');
             resultArea.innerHTML = '<div class="loading">Memuat rekomendasi...</div>';
             detectedInfo.style.display = 'none';
+            requirementsArea.style.display = 'none';
+            selectedSpecsArea.style.display = 'none';
 
             try {
                 const url = `${API_URL}?query=${encodeURIComponent(query)}&limit=${limit}`;
@@ -175,6 +202,22 @@
                         detectedInfo.style.display = 'none';
                     }
 
+                    // Tampilkan requirement game (dengan nama spesifikasi)
+                    if (data.game_requirements && Object.keys(data.game_requirements).length > 0) {
+                        requirementsArea.innerHTML = displayGameRequirements(data.game_requirements);
+                        requirementsArea.style.display = 'block';
+                    } else {
+                        requirementsArea.style.display = 'none';
+                    }
+
+                    // Tampilkan selected specs (spesifikasi yang dipilih untuk filtering)
+                    if (data.selected_specs) {
+                        selectedSpecsArea.innerHTML = displaySelectedSpecs(data.selected_specs);
+                        selectedSpecsArea.style.display = 'block';
+                    } else {
+                        selectedSpecsArea.style.display = 'none';
+                    }
+
                     if (!data.data || data.data.length === 0) {
                         resultArea.innerHTML = '<div class="error">Tidak ada rekomendasi laptop yang ditemukan.</div>';
                         return;
@@ -187,6 +230,43 @@
                 console.error('Error:', error);
                 resultArea.innerHTML = `<div class="error">Gagal memuat data: ${error.message}</div>`;
             }
+        }
+
+        function displayGameRequirements(requirements) {
+            let html = '<h3>📋 Persyaratan Game yang Terdeteksi</h3>';
+            for (const [game, req] of Object.entries(requirements)) {
+                html += `
+                    <div class="game-req">
+                        <h4>${escapeHtml(game)}</h4>
+                        <div class="req-row"><strong>Minimum:</strong> CPU Intel ${escapeHtml(req.min.cpu_intel)} / AMD ${escapeHtml(req.min.cpu_amd)}, GPU NVIDIA ${escapeHtml(req.min.gpu_nvidia)} / AMD ${escapeHtml(req.min.gpu_amd)} / Intel ${escapeHtml(req.min.gpu_intel)}, RAM ${escapeHtml(req.min.ram)}, Storage ${escapeHtml(req.min.storage)}</div>
+                        <div class="req-row"><strong>Recommended:</strong> CPU Intel ${escapeHtml(req.rec.cpu_intel)} / AMD ${escapeHtml(req.rec.cpu_amd)}, GPU NVIDIA ${escapeHtml(req.rec.gpu_nvidia)} / AMD ${escapeHtml(req.rec.gpu_amd)} / Intel ${escapeHtml(req.rec.gpu_intel)}, RAM ${escapeHtml(req.rec.ram)}, Storage ${escapeHtml(req.rec.storage)}</div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function displaySelectedSpecs(specs) {
+            let html = '<h3>⭐ Spesifikasi yang Digunakan untuk Filtering</h3><div class="spec-item">';
+            html += '<div class="spec-title">Minimum (diambil dari game dengan persyaratan tertinggi):</div>';
+            html += `<div class="spec-row">CPU Intel: ${escapeHtml(specs.min.cpu_intel.name)} (dari game ${escapeHtml(specs.min.cpu_intel.game)})</div>`;
+            html += `<div class="spec-row">CPU AMD: ${escapeHtml(specs.min.cpu_amd.name)} (dari game ${escapeHtml(specs.min.cpu_amd.game)})</div>`;
+            html += `<div class="spec-row">GPU NVIDIA: ${escapeHtml(specs.min.gpu_nvidia.name)} (dari game ${escapeHtml(specs.min.gpu_nvidia.game)})</div>`;
+            html += `<div class="spec-row">GPU AMD: ${escapeHtml(specs.min.gpu_amd.name)} (dari game ${escapeHtml(specs.min.gpu_amd.game)})</div>`;
+            html += `<div class="spec-row">GPU Intel: ${escapeHtml(specs.min.gpu_intel.name)} (dari game ${escapeHtml(specs.min.gpu_intel.game)})</div>`;
+            html += `<div class="spec-row">RAM: ${specs.min.ram} GB</div>`;
+            html += `<div class="spec-row">Storage: ${specs.min.storage} GB</div>`;
+
+            html += '<div class="spec-title" style="margin-top: 10px;">Recommended (diambil dari game dengan persyaratan tertinggi):</div>';
+            html += `<div class="spec-row">CPU Intel: ${escapeHtml(specs.rec.cpu_intel.name)} (dari game ${escapeHtml(specs.rec.cpu_intel.game)})</div>`;
+            html += `<div class="spec-row">CPU AMD: ${escapeHtml(specs.rec.cpu_amd.name)} (dari game ${escapeHtml(specs.rec.cpu_amd.game)})</div>`;
+            html += `<div class="spec-row">GPU NVIDIA: ${escapeHtml(specs.rec.gpu_nvidia.name)} (dari game ${escapeHtml(specs.rec.gpu_nvidia.game)})</div>`;
+            html += `<div class="spec-row">GPU AMD: ${escapeHtml(specs.rec.gpu_amd.name)} (dari game ${escapeHtml(specs.rec.gpu_amd.game)})</div>`;
+            html += `<div class="spec-row">GPU Intel: ${escapeHtml(specs.rec.gpu_intel.name)} (dari game ${escapeHtml(specs.rec.gpu_intel.game)})</div>`;
+            html += `<div class="spec-row">RAM: ${specs.rec.ram} GB</div>`;
+            html += `<div class="spec-row">Storage: ${specs.rec.storage} GB</div>`;
+            html += '</div>';
+            return html;
         }
 
         function displayResults(laptops) {
@@ -221,22 +301,22 @@
 
                 html += `
                     <tr class="${categoryClass}">
-                        <td>${escapeHtml(laptop.Brand)}</td>
-                        <td>${escapeHtml(laptop.Model)}</td>
-                        <td>${escapeHtml(laptop.CPU)}</td>
-                        <td>${escapeHtml(laptop.GPU)}</td>
-                        <td>${laptop.RAM}</td>
-                        <td>${laptop.Storage}</td>
-                        <td>${storageType}</td>
-                        <td>${price}</td>
-                        <td>${escapeHtml(laptop.Category)}</td>
-                        <td>${matchScore}</td>
-                    </tr>
+                         <td>${escapeHtml(laptop.Brand)}</td>
+                         <td>${escapeHtml(laptop.Model)}</td>
+                         <td>${escapeHtml(laptop.CPU)}</td>
+                         <td>${escapeHtml(laptop.GPU)}</td>
+                         <td>${laptop.RAM}</td>
+                         <td>${laptop.Storage}</td>
+                         <td>${storageType}</td>
+                         <td>${price}</td>
+                         <td>${escapeHtml(laptop.Category)}</td>
+                         <td>${matchScore}</td>
+                     </tr>
                 `;
             }
             html += `
                     </tbody>
-                </table>
+                 </table>
                 <div class="footer-note">Menampilkan ${laptops.length} laptop</div>
             `;
             resultArea.innerHTML = html;

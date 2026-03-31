@@ -5,39 +5,25 @@ from src.nlp_pipeline import nlp_pipeline_fuzzy
 from src.recommender_core import categorize_laptops_adapted
 
 def recognize_intent_simple(user_query, found_games, found_laptops_entities, extracted_budget):
-    """
-    Menentukan intent dari query pengguna berdasarkan kata kunci dan entity yang ditemukan.
-    """
     query_lower = user_query.lower()
-
-    # Comparison intent
     compare_keywords = ['bandingkan', 'bandingkan dengan', 'versus', 'vs', 'compare']
     if any(keyword in query_lower for keyword in compare_keywords) and len(found_laptops_entities) >= 2:
         return "COMPARE_LAPTOPS"
-
-    # Most expensive laptop
     expensive_keywords = ['termahal', 'paling mahal', 'harga tinggi']
     if any(keyword in query_lower for keyword in expensive_keywords):
         return "FIND_MOST_EXPENSIVE_LAPTOP"
-
-    # Cheapest laptop (with or without game)
     cheapest_keywords = ['termurah', 'paling murah', 'harga rendah', 'murah']
     if any(keyword in query_lower for keyword in cheapest_keywords):
         if found_games:
             return "FIND_CHEAPEST_LAPTOP_FOR_GAME"
         if extracted_budget is not None:
             return "FILTER_LAPTOPS"
-
-    # Filter intent (brand, model, budget, RAM) without game
     filter_keywords = ['brand', 'merek', 'model', 'seri', 'tipe', 'type', 'budget', 'harga', 'ram']
     if (any(keyword in query_lower for keyword in filter_keywords) or found_laptops_entities or extracted_budget is not None) and not found_games:
         return "FILTER_LAPTOPS"
-
-    # Game recommendation intent
     game_keywords = ['main', 'untuk', 'buat', 'bermain', 'playing', 'cocok', 'game', 'gaming', 'butuh']
     if found_games and any(keyword in query_lower for keyword in game_keywords):
         return "FIND_LAPTOP_FOR_GAME"
-
     return "QUERY_NOT_PROCESSED"
 
 
@@ -58,12 +44,8 @@ def get_laptop_recommendations_with_intent(
     series_games,
     brand_models_mapping
 ):
-    """
-    Fungsi utama rekomendasi laptop berdasarkan intent dari query pengguna.
-    """
     print(f"Query Pengguna: {user_query}")
 
-    # 1. Jalankan NLP pipeline untuk ekstraksi entity
     pipeline_result = nlp_pipeline_fuzzy(
         user_query,
         min_req_df['App'].tolist(),
@@ -80,7 +62,6 @@ def get_laptop_recommendations_with_intent(
     extracted_budget = pipeline_result['budget']
     extracted_ram = pipeline_result['ram']
 
-    # Handle "sekitar" budget (ubah single nominal menjadi range)
     query_lower = user_query.lower()
     sekitar_keywords = ['sekitar', 'kisaran', 'kurang lebih']
     if isinstance(extracted_budget, (int, float)) and not isinstance(extracted_budget, tuple) and any(keyword in query_lower for keyword in sekitar_keywords):
@@ -94,14 +75,12 @@ def get_laptop_recommendations_with_intent(
     print(f"Hasil NLP Pipeline: Game={found_games_nlp}, Laptop/Entity={found_laptops_entities}, Budget={extracted_budget}, RAM={extracted_ram}")
     print(f"Intent Terdeteksi: {detected_intent}")
 
-    # Helper function untuk filtering berdasarkan budget, RAM, brand/model (digunakan di beberapa intent)
     def apply_filters(df, budget=None, ram=None, entities=None):
         df_filtered = df.copy()
         if budget is not None:
             if isinstance(budget, tuple):
                 df_filtered = df_filtered[(df_filtered['Final Price'] >= budget[0]) & (df_filtered['Final Price'] <= budget[1])]
             elif budget > 0:
-                # Cek apakah ada keyword "di atas" / "minimal"
                 is_above = any(k in query_lower for k in ['di atas', 'diatas', 'lebih dari', 'minimal'])
                 if is_above:
                     df_filtered = df_filtered[df_filtered['Final Price'] >= budget]
@@ -114,7 +93,6 @@ def get_laptop_recommendations_with_intent(
             mask = pd.Series(False, index=df_filtered.index)
             for ent in entities:
                 mask |= (df_filtered['Brand'].str.lower() == ent.lower()) | (df_filtered['Model'].str.lower() == ent.lower())
-            # Fuzzy fallback jika tidak ada yang cocok
             if not mask.any():
                 for ent in entities:
                     brand_match = process.extractOne(ent, df_filtered['Brand'].unique().tolist(), score_cutoff=90)
@@ -125,6 +103,20 @@ def get_laptop_recommendations_with_intent(
                         mask |= (df_filtered['Model'].str.lower() == model_match[0].lower())
             df_filtered = df_filtered[mask]
         return df_filtered
+
+    # Helper untuk mengambil requirement dari DataFrame jika tidak ada di KB
+    def get_req_from_df(game_name):
+        min_row = min_req_df[min_req_df['App'].str.lower() == game_name.lower()]
+        rec_row = rec_req_df[rec_req_df['App'].str.lower() == game_name.lower()]
+        if min_row.empty:
+            return None, None
+        min_req = min_row.iloc[0].to_dict()
+        if rec_row.empty:
+            # Jika recommended tidak ada, gunakan minimum sebagai recommended juga
+            rec_req = min_req.copy()
+        else:
+            rec_req = rec_row.iloc[0].to_dict()
+        return min_req, rec_req
 
     # ======================== INTENT COMPARE_LAPTOPS ========================
     if detected_intent == "COMPARE_LAPTOPS":
@@ -159,7 +151,7 @@ def get_laptop_recommendations_with_intent(
             return pd.DataFrame({"Status": ["Tidak Ditemukan"], "Pesan": ["Tidak ada laptop yang ditemukan berdasarkan kriteria Anda."]})
         # Jika ada game yang terdeteksi, filter berdasarkan minimum requirements
         if found_games_nlp:
-            # Agregasi requirement per vendor
+            # Agregasi requirement per vendor dengan fallback ke DataFrame
             agg_min_req = {
                 'CPU_Intel_score': 0,
                 'CPU_AMD_score': 0,
@@ -171,6 +163,8 @@ def get_laptop_recommendations_with_intent(
             }
             for game in found_games_nlp:
                 min_req = min_req_kb.get(game)
+                if min_req is None:
+                    min_req, _ = get_req_from_df(game)
                 if min_req:
                     agg_min_req['CPU_Intel_score'] = max(agg_min_req['CPU_Intel_score'], min_req.get('CPU_Intel_score', 0))
                     agg_min_req['CPU_AMD_score'] = max(agg_min_req['CPU_AMD_score'], min_req.get('CPU_AMD_score', 0))
@@ -198,7 +192,7 @@ def get_laptop_recommendations_with_intent(
         if not found_games_nlp:
             return pd.DataFrame({"Status": ["Informasi Kurang"], "Pesan": ["Mohon sebutkan nama game yang ingin dimainkan."]})
 
-        # Agregasi requirement per vendor
+        # Agregasi requirement per vendor dengan fallback ke DataFrame
         agg_min_req = {
             'CPU_Intel_score': 0,
             'CPU_AMD_score': 0,
@@ -219,8 +213,12 @@ def get_laptop_recommendations_with_intent(
         }
         valid_games = []
         for game in found_games_nlp:
+            # Coba ambil dari KB
             min_req = min_req_kb.get(game)
             rec_req = rec_req_kb.get(game)
+            # Jika tidak ada, ambil dari DataFrame
+            if min_req is None or rec_req is None:
+                min_req, rec_req = get_req_from_df(game)
             if min_req and rec_req:
                 valid_games.append(game)
                 agg_min_req['CPU_Intel_score'] = max(agg_min_req['CPU_Intel_score'], min_req.get('CPU_Intel_score', 0))
@@ -260,12 +258,10 @@ def get_laptop_recommendations_with_intent(
             (laptops_filtered['Storage'] >= agg_min_req['File Size'])
         ].copy()
 
-        # CPU/GPU tidak difilter di sini; akan ditangani oleh categorize_laptops_adapted
-
+        # CPU/GPU filtering will be handled by categorize_laptops_adapted
         if laptops_filtered.empty:
             return pd.DataFrame({"Status": ["Tidak Ditemukan"], "Pesan": ["Tidak ada laptop yang memenuhi persyaratan minimum untuk game tersebut."]})
 
-        # Panggil fungsi kategorisasi adapted dengan aggregated requirements
         final_recommendations = categorize_laptops_adapted(
             laptops_filtered,
             agg_min_req,
