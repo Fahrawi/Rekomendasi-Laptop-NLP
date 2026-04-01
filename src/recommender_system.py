@@ -55,13 +55,14 @@ def get_laptop_recommendations_with_intent(
         game_abbreviations_kb,
         game_alt_titles_kb,
         series_abbreviations,
-        bigram_unique_kb
+        bigram_unique_kb,
+        brand_models_mapping
     )
     found_games_nlp = pipeline_result['found_games']
     found_laptops_entities = pipeline_result['found_laptops']
     extracted_budget = pipeline_result['budget']
     extracted_ram = pipeline_result['ram']
-    budget_span = pipeline_result.get('budget_span')  # (start, end) posisi angka budget
+    budget_span = pipeline_result.get('budget_span')
 
     query_lower = user_query.lower()
     sekitar_keywords = ['sekitar', 'kisaran', 'kurang lebih']
@@ -76,26 +77,20 @@ def get_laptop_recommendations_with_intent(
     print(f"Hasil NLP Pipeline: Game={found_games_nlp}, Laptop/Entity={found_laptops_entities}, Budget={extracted_budget}, RAM={extracted_ram}")
     print(f"Intent Terdeteksi: {detected_intent}")
 
-    # Helper untuk filtering dengan logika budget yang lebih presisi
+    # Helper untuk filtering dengan logika budget yang lebih presisi dan penanganan kombinasi brand+model
     def apply_filters(df, budget=None, ram=None, entities=None, budget_span=None):
         df_filtered = df.copy()
         if budget is not None:
             if isinstance(budget, tuple):
                 df_filtered = df_filtered[(df_filtered['Final Price'] >= budget[0]) & (df_filtered['Final Price'] <= budget[1])]
             elif budget > 0:
-                # Tentukan apakah budget adalah batas bawah (≥) atau batas atas (≤)
                 is_above = False
                 if budget_span is not None:
-                    # Ambil teks sebelum angka budget (hingga 30 karakter sebelumnya)
                     before_budget = user_query[:budget_span[0]]
-                    # Periksa keberadaan kata kunci dalam teks sebelum angka
-                    # (cukup periksa 30 karakter terakhir untuk menghindari pencarian jauh)
                     last_30_before = before_budget[-30:] if len(before_budget) >= 30 else before_budget
-                    # Kata kunci yang menandakan batas bawah
                     min_keywords = ['minimal', 'di atas', 'diatas', 'lebih dari']
                     if any(kw in last_30_before.lower() for kw in min_keywords):
                         is_above = True
-                    # Jika tidak ada keyword, default ke batas atas (≤)
                 if is_above:
                     df_filtered = df_filtered[df_filtered['Final Price'] >= budget]
                 else:
@@ -106,7 +101,20 @@ def get_laptop_recommendations_with_intent(
         if entities:
             mask = pd.Series(False, index=df_filtered.index)
             for ent in entities:
+                # Cek apakah entitas adalah kombinasi brand+model (misal "Asus ROG")
+                if ' ' in ent:
+                    parts = ent.split(' ', 1)  # split hanya pada spasi pertama
+                    if len(parts) == 2:
+                        brand_candidate, model_candidate = parts
+                        # Pastikan brand_candidate ada di daftar brand dan model_candidate di daftar model
+                        if brand_candidate in laptop_brand_list and model_candidate in laptop_list:
+                            # Filter tepat: brand harus sama DAN model harus sama
+                            mask |= ((df_filtered['Brand'].str.lower() == brand_candidate.lower()) &
+                                     (df_filtered['Model'].str.lower() == model_candidate.lower()))
+                            continue  # lewati penanganan default untuk entitas ini
+                # Penanganan default: brand atau model tunggal
                 mask |= (df_filtered['Brand'].str.lower() == ent.lower()) | (df_filtered['Model'].str.lower() == ent.lower())
+            # Fallback fuzzy jika tidak ada yang cocok (untuk entitas tunggal yang mungkin typo)
             if not mask.any():
                 for ent in entities:
                     brand_match = process.extractOne(ent, df_filtered['Brand'].unique().tolist(), score_cutoff=90)

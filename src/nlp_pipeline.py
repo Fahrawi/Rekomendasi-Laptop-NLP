@@ -150,7 +150,6 @@ def basic_preprocessing(text):
     tokens = tokenizer.tokenize(text)
     return tokens
 
-# Tambahkan kata 'bermain' ke dalam kata kunci konteks game
 game_context_words = {'main', 'mabar', 'game', 'games', 'memainkan', 'playing', 'bisa', 'cocok', 'untuk', 'bermain'}
 laptop_context_words = {'laptop', 'model', 'brand', 'merek', 'seri', 'type', 'tipe', 'produk'}
 ram_context_words = {'ram', 'memory', 'memori', 'ddr'}
@@ -325,7 +324,7 @@ def extract_text_budget(query):
 
 def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand_list,
                                unique_word_kb, game_abbreviations_kb, game_alt_titles_kb, series_abbreviations,
-                               bigram_unique_kb):
+                               bigram_unique_kb, brand_models_mapping):
     found_games = set()
     found_laptops = set()
     extracted_budget = None
@@ -348,7 +347,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             ram_tokens.add(f"{ram_value}giga")
             ram_tokens.add(f"{ram_value} giga")
 
-    # --- budget extraction ---
+    # --- budget extraction (unchanged) ---
     pattern_range_with_keyword = r'(?:harga|rp|rp\.|budget)\s*:?\s*(\d+(?:[,\.]\d+)?)\s*(?:sampai|hingga|-)\s*(\d+(?:[,\.]\d+)?)\s*(rb|ribu|jt|juta)'
     match_range_keyword = re.search(pattern_range_with_keyword, query_lower, re.IGNORECASE)
     if match_range_keyword:
@@ -450,7 +449,6 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
 
     # --- Detect Game Context Zones ---
     game_context_zones = []
-    # Gunakan kata kunci game yang diperluas dengan 'bermain'
     game_keywords = list(game_context_words)
     pattern = r'\b(' + '|'.join(game_keywords) + r')\b'
     for match in re.finditer(pattern, query_lower):
@@ -583,19 +581,55 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
         if token.lower() in laptop_brand_set_lower and len(token) >= 3 and token.lower() not in stopwords_sastrawi:
             found_laptops.add(laptop_lookup[token.lower()])
 
+    # --- NEW: Combine brand and model using brand_models_mapping ---
+    # Separate detected strings into brands and models
+    brand_list = [e for e in found_laptops if e in laptop_brand_list]
+    model_list = [e for e in found_laptops if e in laptop_list]
+
+    # Build a list of final filters
+    final_laptop_filters = set()
+
+    # Track used brands and models to avoid duplicates
+    used_brands = set()
+    used_models = set()
+
+    # For each brand, try to combine with each model if the model belongs to that brand
+    for brand in brand_list:
+        if brand not in brand_models_mapping:
+            continue
+        brand_models = set(brand_models_mapping[brand])
+        for model in model_list:
+            if model in brand_models:
+                combined = f"{brand} {model}"
+                final_laptop_filters.add(combined)
+                used_brands.add(brand)
+                used_models.add(model)
+
+    # Add remaining brands that were not combined
+    for brand in brand_list:
+        if brand not in used_brands:
+            final_laptop_filters.add(brand)
+
+    # Add remaining models that were not combined
+    for model in model_list:
+        if model not in used_models:
+            final_laptop_filters.add(model)
+
+    # Replace found_laptops with the combined set
+    found_laptops = final_laptop_filters
+
+    # Continue with game detection (unchanged)
     non_laptop_tokens = []
     for idx, token in enumerate(non_budget_non_ram_tokens):
         if idx not in laptop_token_indices:
             non_laptop_tokens.append(token)
 
-    # === Game Detection ===
     exact_kb = {}
     exact_kb.update(game_alt_titles_kb)
     exact_kb.update(game_abbreviations_kb)
     exact_kb.update(unique_word_kb)
     exact_kb.update(bigram_unique_kb)
 
-    game_lookup = {game.lower(): game for game in game_list}
     normalized_game_lookup = {}
     for game in game_list:
         normalized = re.sub(r'[^a-zA-Z0-9]', '', game).lower()
@@ -767,13 +801,13 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
 
 def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
                        unique_keyword_game_map, game_abbreviations_kb, game_alt_titles_kb, series_abbreviations,
-                       bigram_unique_kb):
+                       bigram_unique_kb, brand_models_mapping):
     tokens = basic_preprocessing(user_query)
     tokens = remove_stopwords(tokens)
     found_games, found_laptops, extracted_budget, extracted_ram, budget_span = extract_entities_and_budget(
         user_query, game_list, laptop_list, laptop_brand_list,
         unique_keyword_game_map, game_abbreviations_kb, game_alt_titles_kb, series_abbreviations,
-        bigram_unique_kb
+        bigram_unique_kb, brand_models_mapping
     )
     return {
         "tokens": tokens,

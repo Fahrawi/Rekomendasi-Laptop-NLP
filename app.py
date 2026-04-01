@@ -265,7 +265,8 @@ async def recommend(
             game_abbreviations_kb,
             game_alt_titles_kb,
             series_abbreviations,
-            bigram_unique_kb
+            bigram_unique_kb,
+            brand_models_mapping
         )
 
         result_df = get_laptop_recommendations_with_intent(
