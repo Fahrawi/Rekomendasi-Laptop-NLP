@@ -329,6 +329,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
     found_laptops = set()
     extracted_budget = None
     extracted_ram = []
+    budget_span = None   # <-- tambahan untuk menyimpan posisi budget
 
     query_lower = user_query.lower()
     tokens_with_span = tokenize_with_span(user_query)
@@ -346,9 +347,8 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             ram_tokens.add(f"{ram_value}giga")
             ram_tokens.add(f"{ram_value} giga")
 
-    budget_span = None
-    budget_tokens = set()
-
+    # --- budget extraction ---
+    # Patterns for numeric budget with span
     pattern_range_with_keyword = r'(?:harga|rp|rp\.|budget)\s*:?\s*(\d+(?:[,\.]\d+)?)\s*(?:sampai|hingga|-)\s*(\d+(?:[,\.]\d+)?)\s*(rb|ribu|jt|juta)'
     match_range_keyword = re.search(pattern_range_with_keyword, query_lower, re.IGNORECASE)
     if match_range_keyword:
@@ -367,8 +367,6 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
                 amount2 = int(amount2)
             extracted_budget = (min(amount1, amount2), max(amount1, amount2))
             budget_span = match_range_keyword.span(0)
-            budget_tokens.add(match_range_keyword.group(1).replace(',', '.'))
-            budget_tokens.add(match_range_keyword.group(2).replace(',', '.'))
         except:
             pass
 
@@ -391,8 +389,6 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
                     amount2 = int(amount2)
                 extracted_budget = (min(amount1, amount2), max(amount1, amount2))
                 budget_span = match_range.span(0)
-                budget_tokens.add(match_range.group(1).replace(',', '.'))
-                budget_tokens.add(match_range.group(2).replace(',', '.'))
             except:
                 pass
 
@@ -414,7 +410,6 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
                     else:
                         extracted_budget = int(amount)
                 budget_span = match_single_keyword.span(0)
-                budget_tokens.add(match_single_keyword.group(1).replace(',', '.'))
             except:
                 pass
 
@@ -432,7 +427,6 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
                 else:
                     extracted_budget = int(amount)
                 budget_span = match_single.span(0)
-                budget_tokens.add(match_single.group(1).replace(',', '.'))
             except:
                 pass
 
@@ -442,6 +436,9 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             extracted_budget = text_budget
             budget_span = text_budget_span
 
+    # ... (seluruh kode setelah ini tetap sama, hanya return yang ditambah budget_span)
+
+    # Non-budget tokens
     non_budget_tokens = []
     if budget_span is not None:
         budget_start, budget_end = budget_span
@@ -453,6 +450,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
 
     non_budget_non_ram_tokens = [token for token in non_budget_tokens if token.lower() not in ram_tokens]
 
+    # Game context zones
     game_context_zones = []
     for match in re.finditer(r'\b(main|game|play|buat|untuk)\b', query_lower):
         context_start = match.start()
@@ -463,6 +461,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             context_end = len(query_lower)
         game_context_zones.append((context_start, context_end))
 
+    # Laptop detection
     laptop_lookup = {e.lower(): e for e in (laptop_list + laptop_brand_list)}
     laptop_entities = set(laptop_lookup.keys())
     ambiguous_indices = set()
@@ -588,6 +587,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
         if idx not in laptop_token_indices:
             non_laptop_tokens.append(token)
 
+    # === Game Detection ===
     exact_kb = {}
     exact_kb.update(game_alt_titles_kb)
     exact_kb.update(game_abbreviations_kb)
@@ -762,14 +762,14 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
 
     confirmed_games = remove_general_games_if_specific_found(confirmed_games)
 
-    return list(confirmed_games), list(found_laptops), extracted_budget, extracted_ram
+    return list(confirmed_games), list(found_laptops), extracted_budget, extracted_ram, budget_span
 
 def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
                        unique_keyword_game_map, game_abbreviations_kb, game_alt_titles_kb, series_abbreviations,
                        bigram_unique_kb):
     tokens = basic_preprocessing(user_query)
     tokens = remove_stopwords(tokens)
-    found_games, found_laptops, extracted_budget, extracted_ram = extract_entities_and_budget(
+    found_games, found_laptops, extracted_budget, extracted_ram, budget_span = extract_entities_and_budget(
         user_query, game_list, laptop_list, laptop_brand_list,
         unique_keyword_game_map, game_abbreviations_kb, game_alt_titles_kb, series_abbreviations,
         bigram_unique_kb
@@ -779,5 +779,6 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
         "found_games": found_games,
         "found_laptops": found_laptops,
         "budget": extracted_budget,
-        "ram": extracted_ram
+        "ram": extracted_ram,
+        "budget_span": budget_span
     }

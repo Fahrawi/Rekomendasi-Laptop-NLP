@@ -61,6 +61,7 @@ def get_laptop_recommendations_with_intent(
     found_laptops_entities = pipeline_result['found_laptops']
     extracted_budget = pipeline_result['budget']
     extracted_ram = pipeline_result['ram']
+    budget_span = pipeline_result.get('budget_span')  # (start, end) posisi angka budget
 
     query_lower = user_query.lower()
     sekitar_keywords = ['sekitar', 'kisaran', 'kurang lebih']
@@ -75,13 +76,26 @@ def get_laptop_recommendations_with_intent(
     print(f"Hasil NLP Pipeline: Game={found_games_nlp}, Laptop/Entity={found_laptops_entities}, Budget={extracted_budget}, RAM={extracted_ram}")
     print(f"Intent Terdeteksi: {detected_intent}")
 
-    def apply_filters(df, budget=None, ram=None, entities=None):
+    # Helper untuk filtering dengan logika budget yang lebih presisi
+    def apply_filters(df, budget=None, ram=None, entities=None, budget_span=None):
         df_filtered = df.copy()
         if budget is not None:
             if isinstance(budget, tuple):
                 df_filtered = df_filtered[(df_filtered['Final Price'] >= budget[0]) & (df_filtered['Final Price'] <= budget[1])]
             elif budget > 0:
-                is_above = any(k in query_lower for k in ['di atas', 'diatas', 'lebih dari', 'minimal'])
+                # Tentukan apakah budget adalah batas bawah (≥) atau batas atas (≤)
+                is_above = False
+                if budget_span is not None:
+                    # Ambil teks sebelum angka budget (hingga 30 karakter sebelumnya)
+                    before_budget = user_query[:budget_span[0]]
+                    # Periksa keberadaan kata kunci dalam teks sebelum angka
+                    # (cukup periksa 30 karakter terakhir untuk menghindari pencarian jauh)
+                    last_30_before = before_budget[-30:] if len(before_budget) >= 30 else before_budget
+                    # Kata kunci yang menandakan batas bawah
+                    min_keywords = ['minimal', 'di atas', 'diatas', 'lebih dari']
+                    if any(kw in last_30_before.lower() for kw in min_keywords):
+                        is_above = True
+                    # Jika tidak ada keyword, default ke batas atas (≤)
                 if is_above:
                     df_filtered = df_filtered[df_filtered['Final Price'] >= budget]
                 else:
@@ -112,7 +126,6 @@ def get_laptop_recommendations_with_intent(
             return None, None
         min_req = min_row.iloc[0].to_dict()
         if rec_row.empty:
-            # Jika recommended tidak ada, gunakan minimum sebagai recommended juga
             rec_req = min_req.copy()
         else:
             rec_req = rec_row.iloc[0].to_dict()
@@ -136,7 +149,7 @@ def get_laptop_recommendations_with_intent(
     if detected_intent == "FILTER_LAPTOPS":
         if not found_laptops_entities and extracted_budget is None and not extracted_ram:
             return pd.DataFrame({"Status": ["Informasi Kurang"], "Pesan": ["Mohon sebutkan brand laptop, model, budget, atau RAM yang Anda inginkan."]})
-        laptops_filtered = apply_filters(laptop_df, budget=extracted_budget, ram=extracted_ram, entities=found_laptops_entities)
+        laptops_filtered = apply_filters(laptop_df, budget=extracted_budget, ram=extracted_ram, entities=found_laptops_entities, budget_span=budget_span)
         if laptops_filtered.empty:
             return pd.DataFrame({"Status": ["Tidak Ditemukan"], "Pesan": ["Tidak ada laptop yang ditemukan berdasarkan kriteria Anda."]})
         laptops_filtered = laptops_filtered.sort_values(by='Final Price', ascending=False).reset_index(drop=True)
@@ -146,12 +159,11 @@ def get_laptop_recommendations_with_intent(
 
     # ======================== INTENT FIND_MOST_EXPENSIVE_LAPTOP ========================
     if detected_intent == "FIND_MOST_EXPENSIVE_LAPTOP":
-        laptops_filtered = apply_filters(laptop_df, budget=extracted_budget, ram=extracted_ram, entities=found_laptops_entities)
+        laptops_filtered = apply_filters(laptop_df, budget=extracted_budget, ram=extracted_ram, entities=found_laptops_entities, budget_span=budget_span)
         if laptops_filtered.empty:
             return pd.DataFrame({"Status": ["Tidak Ditemukan"], "Pesan": ["Tidak ada laptop yang ditemukan berdasarkan kriteria Anda."]})
         # Jika ada game yang terdeteksi, filter berdasarkan minimum requirements
         if found_games_nlp:
-            # Agregasi requirement per vendor dengan fallback ke DataFrame
             agg_min_req = {
                 'CPU_Intel_score': 0,
                 'CPU_AMD_score': 0,
@@ -175,7 +187,6 @@ def get_laptop_recommendations_with_intent(
                     storage_min = int(''.join(filter(str.isdigit, str(min_req.get('File Size', '0'))))) or 0
                     agg_min_req['RAM'] = max(agg_min_req['RAM'], ram_min)
                     agg_min_req['File Size'] = max(agg_min_req['File Size'], storage_min)
-            # Filter RAM dan Storage (CPU/GPU akan ditangani oleh categorize)
             laptops_filtered = laptops_filtered[
                 (laptops_filtered['RAM'] >= agg_min_req['RAM']) &
                 (laptops_filtered['Storage'] >= agg_min_req['File Size'])
@@ -187,7 +198,7 @@ def get_laptop_recommendations_with_intent(
         print(most_expensive[['Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price']])
         return most_expensive[['Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price']]
 
-    # ======================== INTENT FIND_LAPTOP_FOR_GAME (dan varian cheapest) ========================
+    # ======================== INTENT FIND_LAPTOP_FOR_GAME ========================
     if detected_intent in ["FIND_BEST_LAPTOP_FOR_GAME", "FIND_CHEAPEST_LAPTOP_FOR_GAME", "FIND_LAPTOP_FOR_GAME"]:
         if not found_games_nlp:
             return pd.DataFrame({"Status": ["Informasi Kurang"], "Pesan": ["Mohon sebutkan nama game yang ingin dimainkan."]})
@@ -213,10 +224,8 @@ def get_laptop_recommendations_with_intent(
         }
         valid_games = []
         for game in found_games_nlp:
-            # Coba ambil dari KB
             min_req = min_req_kb.get(game)
             rec_req = rec_req_kb.get(game)
-            # Jika tidak ada, ambil dari DataFrame
             if min_req is None or rec_req is None:
                 min_req, rec_req = get_req_from_df(game)
             if min_req and rec_req:
@@ -250,7 +259,7 @@ def get_laptop_recommendations_with_intent(
         print(f"  RAM: {agg_min_req['RAM']} GB, Storage: {agg_min_req['File Size']} GB")
 
         # Filter awal berdasarkan budget, RAM, brand/model
-        laptops_filtered = apply_filters(laptop_df, budget=extracted_budget, ram=extracted_ram, entities=found_laptops_entities)
+        laptops_filtered = apply_filters(laptop_df, budget=extracted_budget, ram=extracted_ram, entities=found_laptops_entities, budget_span=budget_span)
 
         # Filter berdasarkan minimum requirements (RAM dan Storage)
         laptops_filtered = laptops_filtered[
@@ -258,7 +267,6 @@ def get_laptop_recommendations_with_intent(
             (laptops_filtered['Storage'] >= agg_min_req['File Size'])
         ].copy()
 
-        # CPU/GPU filtering will be handled by categorize_laptops_adapted
         if laptops_filtered.empty:
             return pd.DataFrame({"Status": ["Tidak Ditemukan"], "Pesan": ["Tidak ada laptop yang memenuhi persyaratan minimum untuk game tersebut."]})
 
@@ -275,7 +283,7 @@ def get_laptop_recommendations_with_intent(
         if detected_intent == "FIND_CHEAPEST_LAPTOP_FOR_GAME":
             final_recommendations['Category_Order'] = final_recommendations['Category'].map({'Recommended': 0, 'Mixed': 1, 'Minimum': 2})
             final_recommendations = final_recommendations.sort_values(by=['Category_Order', 'Final Price', 'Match_Score'], ascending=[True, True, False]).drop(columns='Category_Order')
-        else:  # FIND_BEST_LAPTOP_FOR_GAME atau default
+        else:
             final_recommendations['Category_Order'] = final_recommendations['Category'].map({'Recommended': 0, 'Mixed': 1, 'Minimum': 2})
             final_recommendations = final_recommendations.sort_values(by=['Category_Order', 'Match_Score'], ascending=[True, False]).drop(columns='Category_Order')
 
