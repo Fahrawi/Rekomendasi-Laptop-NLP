@@ -61,7 +61,6 @@ GPU_VENDOR_KEYWORDS = {
 }
 
 def is_valid_spec(value, vendor, spec_type='cpu'):
-    """Check if spec string matches the given vendor for cpu or gpu."""
     if not value or not isinstance(value, str):
         return False
     value_lower = value.strip().lower()
@@ -80,7 +79,6 @@ def to_python_int(val):
     return val
 
 def get_game_specs_from_df(game_name, min_df, rec_df):
-    """Ambil requirement game (nama spec) langsung dari DataFrame, hanya tampilkan yang valid"""
     min_row = min_df[min_df['App'].str.lower() == game_name.lower()]
     rec_row = rec_df[rec_df['App'].str.lower() == game_name.lower()]
     if min_row.empty:
@@ -95,6 +93,8 @@ def get_game_specs_from_df(game_name, min_df, rec_df):
         if pd.isna(value) or not isinstance(value, str):
             return ''
         value = value.strip()
+        if (vendor == 'intel' and spec_type == 'cpu') or (vendor == 'intel' and spec_type == 'gpu'):
+            return value
         if is_valid_spec(value, vendor, spec_type):
             return value
         return ''
@@ -124,7 +124,6 @@ def aggregate_selected_specs(games, min_df, rec_df):
     """
     Menghitung spesifikasi tertinggi yang digunakan untuk filtering
     berdasarkan semua game yang terdeteksi (skor tertinggi per komponen)
-    Hanya menampilkan nama spec yang valid sesuai vendor
     """
     result = {
         'min': {
@@ -146,6 +145,22 @@ def aggregate_selected_specs(games, min_df, rec_df):
             'storage': 0
         }
     }
+    # Mapping dari internal key ke nama kolom untuk spesifikasi (nama hardware)
+    col_map = {
+        'cpu_intel': 'CPU_Intel',
+        'cpu_amd': 'CPU_AMD',
+        'gpu_nvidia': 'GPU_NVIDIA',
+        'gpu_amd': 'GPU_AMD',
+        'gpu_intel': 'GPU_Intel'
+    }
+    # Mapping dari internal key ke nama kolom untuk skor
+    score_col_map = {
+        'cpu_intel': 'CPU_Intel_score',
+        'cpu_amd': 'CPU_AMD_score',
+        'gpu_nvidia': 'GPU_NVIDIA_score',
+        'gpu_amd': 'GPU_AMD_score',
+        'gpu_intel': 'GPU_Intel_score'
+    }
     for game in games:
         min_row = min_df[min_df['App'].str.lower() == game.lower()]
         rec_row = rec_df[rec_df['App'].str.lower() == game.lower()]
@@ -159,22 +174,24 @@ def aggregate_selected_specs(games, min_df, rec_df):
 
         # Minimum
         for key in ['cpu_intel', 'cpu_amd', 'gpu_nvidia', 'gpu_amd', 'gpu_intel']:
-            score_key = f'{key.upper()}_score'
-            name_key = key.upper()
+            score_key = score_col_map[key]
+            name_key = col_map[key]
             score = to_python_int(min_req.get(score_key, 0))
             if score > result['min'][key]['score']:
                 vendor = key.split('_')[1]
                 spec_type = 'cpu' if key.startswith('cpu') else 'gpu'
                 name_val = min_req.get(name_key, '')
-                if pd.notna(name_val) and isinstance(name_val, str):
-                    name_val = name_val.strip()
-                    if is_valid_spec(name_val, vendor, spec_type):
-                        result['min'][key]['name'] = name_val
+                # Intel CPU dan Intel GPU: langsung simpan nama (tanpa validasi)
+                if key in ['cpu_intel', 'gpu_intel']:
+                    if pd.notna(name_val) and isinstance(name_val, str) and name_val.strip():
+                        result['min'][key]['name'] = name_val.strip()
                         result['min'][key]['game'] = game
-                    else:
-                        result['min'][key]['name'] = ''
                 else:
-                    result['min'][key]['name'] = ''
+                    if pd.notna(name_val) and isinstance(name_val, str):
+                        name_val = name_val.strip()
+                        if is_valid_spec(name_val, vendor, spec_type):
+                            result['min'][key]['name'] = name_val
+                            result['min'][key]['game'] = game
                 result['min'][key]['score'] = score
         ram_val = to_python_int(int(''.join(filter(str.isdigit, str(min_req.get('RAM', '0')))) or 0))
         if ram_val > result['min']['ram']:
@@ -185,22 +202,23 @@ def aggregate_selected_specs(games, min_df, rec_df):
 
         # Recommended
         for key in ['cpu_intel', 'cpu_amd', 'gpu_nvidia', 'gpu_amd', 'gpu_intel']:
-            score_key = f'{key.upper()}_score'
-            name_key = key.upper()
+            score_key = score_col_map[key]
+            name_key = col_map[key]
             score = to_python_int(rec_req.get(score_key, 0))
             if score > result['rec'][key]['score']:
                 vendor = key.split('_')[1]
                 spec_type = 'cpu' if key.startswith('cpu') else 'gpu'
                 name_val = rec_req.get(name_key, '')
-                if pd.notna(name_val) and isinstance(name_val, str):
-                    name_val = name_val.strip()
-                    if is_valid_spec(name_val, vendor, spec_type):
-                        result['rec'][key]['name'] = name_val
+                if key in ['cpu_intel', 'gpu_intel']:
+                    if pd.notna(name_val) and isinstance(name_val, str) and name_val.strip():
+                        result['rec'][key]['name'] = name_val.strip()
                         result['rec'][key]['game'] = game
-                    else:
-                        result['rec'][key]['name'] = ''
                 else:
-                    result['rec'][key]['name'] = ''
+                    if pd.notna(name_val) and isinstance(name_val, str):
+                        name_val = name_val.strip()
+                        if is_valid_spec(name_val, vendor, spec_type):
+                            result['rec'][key]['name'] = name_val
+                            result['rec'][key]['game'] = game
                 result['rec'][key]['score'] = score
         ram_val_rec = to_python_int(int(''.join(filter(str.isdigit, str(rec_req.get('RAM', '0')))) or 0))
         if ram_val_rec > result['rec']['ram']:
@@ -291,17 +309,14 @@ async def recommend(
             })
             records = result_df.head(limit).to_dict(orient='records')
 
-        # Ambil spesifikasi untuk setiap game yang terdeteksi (dalam bentuk nama)
         game_requirements = {}
         for game in pipeline_meta['found_games']:
             specs = get_game_specs_from_df(game, min_req_df, rec_req_df)
             if specs:
                 game_requirements[game] = specs
 
-        # Hitung spesifikasi tertinggi yang digunakan untuk filtering
         selected_specs = aggregate_selected_specs(pipeline_meta['found_games'], min_req_df, rec_req_df)
 
-        # Format budget
         budget = pipeline_meta['budget']
         budget_display = None
         if budget is not None:
