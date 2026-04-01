@@ -93,8 +93,7 @@ def get_game_specs_from_df(game_name, min_df, rec_df):
         if pd.isna(value) or not isinstance(value, str):
             return ''
         value = value.strip()
-        if (vendor == 'intel' and spec_type == 'cpu') or (vendor == 'intel' and spec_type == 'gpu'):
-            return value
+        # Untuk Intel CPU dan Intel GPU, kita validasi juga agar tidak menampilkan yang tidak sesuai
         if is_valid_spec(value, vendor, spec_type):
             return value
         return ''
@@ -145,7 +144,6 @@ def aggregate_selected_specs(games, min_df, rec_df):
             'storage': 0
         }
     }
-    # Mapping dari internal key ke nama kolom untuk spesifikasi (nama hardware)
     col_map = {
         'cpu_intel': 'CPU_Intel',
         'cpu_amd': 'CPU_AMD',
@@ -153,7 +151,6 @@ def aggregate_selected_specs(games, min_df, rec_df):
         'gpu_amd': 'GPU_AMD',
         'gpu_intel': 'GPU_Intel'
     }
-    # Mapping dari internal key ke nama kolom untuk skor
     score_col_map = {
         'cpu_intel': 'CPU_Intel_score',
         'cpu_amd': 'CPU_AMD_score',
@@ -181,17 +178,11 @@ def aggregate_selected_specs(games, min_df, rec_df):
                 vendor = key.split('_')[1]
                 spec_type = 'cpu' if key.startswith('cpu') else 'gpu'
                 name_val = min_req.get(name_key, '')
-                # Intel CPU dan Intel GPU: langsung simpan nama (tanpa validasi)
-                if key in ['cpu_intel', 'gpu_intel']:
-                    if pd.notna(name_val) and isinstance(name_val, str) and name_val.strip():
-                        result['min'][key]['name'] = name_val.strip()
+                if pd.notna(name_val) and isinstance(name_val, str):
+                    name_val = name_val.strip()
+                    if is_valid_spec(name_val, vendor, spec_type):
+                        result['min'][key]['name'] = name_val
                         result['min'][key]['game'] = game
-                else:
-                    if pd.notna(name_val) and isinstance(name_val, str):
-                        name_val = name_val.strip()
-                        if is_valid_spec(name_val, vendor, spec_type):
-                            result['min'][key]['name'] = name_val
-                            result['min'][key]['game'] = game
                 result['min'][key]['score'] = score
         ram_val = to_python_int(int(''.join(filter(str.isdigit, str(min_req.get('RAM', '0')))) or 0))
         if ram_val > result['min']['ram']:
@@ -209,16 +200,11 @@ def aggregate_selected_specs(games, min_df, rec_df):
                 vendor = key.split('_')[1]
                 spec_type = 'cpu' if key.startswith('cpu') else 'gpu'
                 name_val = rec_req.get(name_key, '')
-                if key in ['cpu_intel', 'gpu_intel']:
-                    if pd.notna(name_val) and isinstance(name_val, str) and name_val.strip():
-                        result['rec'][key]['name'] = name_val.strip()
+                if pd.notna(name_val) and isinstance(name_val, str):
+                    name_val = name_val.strip()
+                    if is_valid_spec(name_val, vendor, spec_type):
+                        result['rec'][key]['name'] = name_val
                         result['rec'][key]['game'] = game
-                else:
-                    if pd.notna(name_val) and isinstance(name_val, str):
-                        name_val = name_val.strip()
-                        if is_valid_spec(name_val, vendor, spec_type):
-                            result['rec'][key]['name'] = name_val
-                            result['rec'][key]['game'] = game
                 result['rec'][key]['score'] = score
         ram_val_rec = to_python_int(int(''.join(filter(str.isdigit, str(rec_req.get('RAM', '0')))) or 0))
         if ram_val_rec > result['rec']['ram']:

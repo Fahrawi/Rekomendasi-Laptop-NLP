@@ -150,7 +150,8 @@ def basic_preprocessing(text):
     tokens = tokenizer.tokenize(text)
     return tokens
 
-game_context_words = {'main', 'mabar', 'game', 'games', 'memainkan', 'playing', 'bisa', 'cocok', 'untuk'}
+# Tambahkan kata 'bermain' ke dalam kata kunci konteks game
+game_context_words = {'main', 'mabar', 'game', 'games', 'memainkan', 'playing', 'bisa', 'cocok', 'untuk', 'bermain'}
 laptop_context_words = {'laptop', 'model', 'brand', 'merek', 'seri', 'type', 'tipe', 'produk'}
 ram_context_words = {'ram', 'memory', 'memori', 'ddr'}
 
@@ -329,7 +330,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
     found_laptops = set()
     extracted_budget = None
     extracted_ram = []
-    budget_span = None   # <-- tambahan untuk menyimpan posisi budget
+    budget_span = None
 
     query_lower = user_query.lower()
     tokens_with_span = tokenize_with_span(user_query)
@@ -348,7 +349,6 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             ram_tokens.add(f"{ram_value} giga")
 
     # --- budget extraction ---
-    # Patterns for numeric budget with span
     pattern_range_with_keyword = r'(?:harga|rp|rp\.|budget)\s*:?\s*(\d+(?:[,\.]\d+)?)\s*(?:sampai|hingga|-)\s*(\d+(?:[,\.]\d+)?)\s*(rb|ribu|jt|juta)'
     match_range_keyword = re.search(pattern_range_with_keyword, query_lower, re.IGNORECASE)
     if match_range_keyword:
@@ -436,8 +436,6 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             extracted_budget = text_budget
             budget_span = text_budget_span
 
-    # ... (seluruh kode setelah ini tetap sama, hanya return yang ditambah budget_span)
-
     # Non-budget tokens
     non_budget_tokens = []
     if budget_span is not None:
@@ -450,9 +448,12 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
 
     non_budget_non_ram_tokens = [token for token in non_budget_tokens if token.lower() not in ram_tokens]
 
-    # Game context zones
+    # --- Detect Game Context Zones ---
     game_context_zones = []
-    for match in re.finditer(r'\b(main|game|play|buat|untuk)\b', query_lower):
+    # Gunakan kata kunci game yang diperluas dengan 'bermain'
+    game_keywords = list(game_context_words)
+    pattern = r'\b(' + '|'.join(game_keywords) + r')\b'
+    for match in re.finditer(pattern, query_lower):
         context_start = match.start()
         next_laptop_context = re.search(r'\b(laptop|merek|brand|model)\b', query_lower[context_start:])
         if next_laptop_context:
@@ -461,7 +462,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             context_end = len(query_lower)
         game_context_zones.append((context_start, context_end))
 
-    # Laptop detection
+    # --- Laptop detection ---
     laptop_lookup = {e.lower(): e for e in (laptop_list + laptop_brand_list)}
     laptop_entities = set(laptop_lookup.keys())
     ambiguous_indices = set()
