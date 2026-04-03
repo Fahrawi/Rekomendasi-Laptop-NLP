@@ -22,6 +22,11 @@ from scripts.build_abbrev_alt_kb import build_abbrev_alt_kb
 from scripts.build_brand_models_kb import build_brand_models_kb
 from src.recommender_system import get_laptop_recommendations_with_intent
 from src.nlp_pipeline import nlp_pipeline_fuzzy
+# Phase 1 & 2 imports for hybrid recommendation
+from src.smart_filters_and_ahp import apply_smart_filters, get_intent_based_weights
+from src.topsis_engine import run_topsis, get_topsis_summary
+from pydantic import BaseModel
+from typing import Optional, List
 
 app = FastAPI(title="Laptop Recommendation System API", version="1.0")
 
@@ -32,6 +37,53 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================================
+# PHASE 3: REQUEST & RESPONSE MODELS FOR HYBRID RECOMMENDATION
+# ============================================================================
+
+class HybridRecommendRequest(BaseModel):
+    """Request model for integrated NLP + Phase 1 + Phase 2 recommendation"""
+    query: str  # Natural language query, e.g., "mau main hi3rd dengan budget 20jt"
+    top_n: int = 5  # Number of recommendations (default 5, max 10)
+
+class LaptopSpecsResponse(BaseModel):
+    """Laptop specifications in response"""
+    cpu_name: Optional[str] = None
+    cpu_score: Optional[float] = None
+    gpu_name: Optional[str] = None
+    gpu_score: Optional[float] = None
+    ram: Optional[int] = None
+    ram_type: Optional[str] = None  # DDR3/DDR4/DDR5
+    storage: Optional[int] = None
+    final_price: Optional[int] = None
+
+class SystemRequirements(BaseModel):
+    """System requirements for a game/app"""
+    app_name: str
+    cpu: str
+    gpu: str
+    ram: str
+
+class RecommendedLaptop(BaseModel):
+    """Single recommended laptop with TOPSIS score"""
+    rank: int
+    brand: str
+    model: str
+    topsis_score: float
+    specs: LaptopSpecsResponse
+    reasoning: str  # Why this laptop is recommended
+
+class HybridRecommendResponse(BaseModel):
+    """Response model for hybrid recommendation"""
+    status: str
+    intent: str
+    filtered_count: int
+    ranked_count: int
+    weights_applied: dict
+    recommendations: List[RecommendedLaptop]
+    message: str
+    app_requirements: Optional[List[SystemRequirements]] = None  # Minimum & Recommended for detected apps
 
 # Global variables
 laptop_df = None
@@ -349,6 +401,250 @@ async def debug():
         "series_games_size": len(series_games) if series_games else 0,
         "brand_models_mapping_keys": list(brand_models_mapping.keys()) if brand_models_mapping else []
     }
+
+# ============================================================================
+# PHASE 3: HYBRID RECOMMENDATION ENDPOINT (Phase 1 + Phase 2)
+# ============================================================================
+
+@app.post("/api/recommend-hybrid")
+async def recommend_hybrid(request: HybridRecommendRequest):
+    """
+    Integrated NLP + Phase 1 + Phase 2 Hybrid Recommendation Endpoint
+    
+    Workflow:
+    1. NLP Pipeline: Extract intent, budget, RAM, brand, games from natural language query
+    2. Phase 1: Apply smart filters based on extracted data
+    3. Phase 1: Get AHP weights based on detected intent
+    4. Phase 2: Run TOPSIS algorithm for ranking
+    5. Return top-N recommendations with TOPSIS scores
+    
+    Args:
+        request: HybridRecommendRequest with natural language query
+    
+    Returns:
+        HybridRecommendResponse with ranked recommendations and TOPSIS scores
+    """
+    try:
+        # Validate data is loaded
+        if any(v is None for v in [laptop_df, min_req_df, rec_req_df, 
+                                   laptop_list, laptop_brand_list]):
+            raise HTTPException(status_code=503, detail="Data belum siap untuk rekomendasi.")
+        
+        query = request.query.strip()
+        top_n = min(request.top_n or 5, 10)  # Max 10 recommendations
+        
+        print(f"\n📝 Query: {query}")
+        
+        # ========== NLP PIPELINE: EXTRACT FROM NATURAL LANGUAGE ==========
+        
+        # Use NLP pipeline to extract intent, budget, RAM, games, brand from natural language query
+        nlp_result = nlp_pipeline_fuzzy(
+            query,
+            min_req_df['App'].tolist(),
+            laptop_df['Model'].tolist(),
+            laptop_df['Brand'].unique().tolist(),
+            unique_word_kb,
+            game_abbreviations_kb,
+            game_alt_titles_kb,
+            series_abbreviations,
+            bigram_unique_kb,
+            brand_models_mapping
+        )
+        
+        print(f"🔍 NLP Result:")
+        print(f"   Budget: {nlp_result.get('budget')}")
+        print(f"   Games: {nlp_result.get('found_games', [])}")
+        print(f"   Laptops/Brand: {nlp_result.get('found_laptops', [])}")
+        print(f"   RAM: {nlp_result.get('ram', [])}")
+        
+        # Extract data from NLP result using correct keys
+        # Determine intent based on whether games or other keywords were found
+        games = nlp_result.get('found_games', [])
+        budget_max = nlp_result.get('budget')  # Will be None if not detected
+        ram_min = nlp_result.get('ram', [None])[0] if nlp_result.get('ram') else None  # Get first RAM if any
+        brand = nlp_result.get('found_laptops', [None])[0] if nlp_result.get('found_laptops') else None
+        
+        # Determine intent based on extracted data
+        if games:
+            intent = "FIND_LAPTOP_FOR_GAME"
+        else:
+            intent = "FIND_LAPTOP_GENERAL"
+        
+        print(f"   Intent (auto-detected): {intent}")
+        
+        # Convert brand to uppercase if present
+        if brand:
+            brand = brand.upper()
+        
+        # ========== PHASE 1: SMART FILTERS & AHP ==========
+        
+        print(f"\n🔧 Phase 1: Smart Filters + AHP Weighting")
+        
+        # Prepare filtering criteria based on NLP extraction
+        filter_criteria = {
+            'intent': intent,
+            'budget': None,
+            'ram': ram_min,
+            'brand': brand,
+            'game_list': games
+        }
+        
+        # Add budget filter if detected
+        if budget_max:
+            filter_criteria['budget'] = (0, budget_max)
+        
+        # Apply smart filters based on extracted data
+        filtered_df = apply_smart_filters(
+            df=laptop_df,
+            intent=intent,
+            budget=filter_criteria['budget'],
+            ram=filter_criteria['ram'],
+            brand=filter_criteria['brand'],
+            game_list=filter_criteria['game_list']
+        )
+        
+        if filtered_df is None or filtered_df.empty:
+            return HybridRecommendResponse(
+                status="success",
+                intent=intent,
+                filtered_count=0,
+                ranked_count=0,
+                weights_applied={},
+                recommendations=[],
+                message="Tidak ada laptop yang sesuai dengan kriteria Anda."
+            )
+        
+        filtered_count = len(filtered_df)
+        print(f"   ✅ Filtered: {filtered_count} laptop")
+        
+        # Get AHP weights based on intent
+        ahp_weights = get_intent_based_weights(intent)
+        print(f"   ✅ Weights applied: {ahp_weights}")
+        
+        # ========== PHASE 2: TOPSIS RANKING ==========
+        
+        print(f"\n📊 Phase 2: TOPSIS Ranking")
+        
+        # For game intents, exclude Storage from criteria since past minimum it doesn't affect gaming performance
+        custom_criteria = None
+        if "GAME" in intent.upper():
+            print(f"   ℹ️  Game intent - using GPU-optimized criteria")
+            custom_criteria = {
+                'GPU_score': {'type': 'benefit', 'description': 'GPU performance score'},
+                'CPU_score': {'type': 'benefit', 'description': 'CPU performance score'},
+                'RAM': {'type': 'benefit', 'description': 'RAM in GB'},
+                'Final Price': {'type': 'cost', 'description': 'Price in IDR'}
+            }
+        
+        # Run TOPSIS algorithm
+        ranked_df = run_topsis(filtered_df, ahp_weights, criteria_columns=custom_criteria)
+        
+        if ranked_df is None or ranked_df.empty:
+            return HybridRecommendResponse(
+                status="success",
+                intent=intent,
+                filtered_count=filtered_count,
+                ranked_count=0,
+                weights_applied=ahp_weights,
+                recommendations=[],
+                message="Gagal melakukan ranking dengan TOPSIS."
+            )
+        
+        # Get top-N recommendations with summary stats
+        summary = get_topsis_summary(ranked_df, top_n=top_n)
+        
+        ranked_count = len(ranked_df)
+        print(f"   ✅ Ranked: {ranked_count} laptop")
+        
+        # ========== FORMAT RESPONSE ==========
+        
+        print(f"\n✨ Top {top_n} Recommendations:")
+        
+        recommendations = []
+        if summary and "top_recommendations" in summary:
+            for idx, rec in enumerate(summary["top_recommendations"]):
+                # Build reasoning based on weights and scores
+                reasoning = f"Rank #{rec['rank']}: "
+                if intent == "FIND_LAPTOP_FOR_GAME":
+                    reasoning += f"GPU skor {rec['specs'].get('gpu_score', 0) or 0:.0f} (TOPSIS: {rec['topsis_score']:.4f})"
+                elif intent == "AI_DEVELOPMENT":
+                    reasoning += f"CPU & GPU optimal (TOPSIS: {rec['topsis_score']:.4f})"
+                else:
+                    reasoning += f"Cocok untuk use case Anda (TOPSIS: {rec['topsis_score']:.4f})"
+                
+                recommended = RecommendedLaptop(
+                    rank=rec['rank'],
+                    brand=rec.get('brand', 'N/A'),
+                    model=rec.get('model', 'N/A'),
+                    topsis_score=float(rec.get('topsis_score', 0)),
+                    specs=LaptopSpecsResponse(
+                        cpu_name=rec['specs'].get('cpu_name', None),
+                        cpu_score=rec['specs'].get('cpu_score', None),
+                        gpu_name=rec['specs'].get('gpu_name', None),
+                        gpu_score=rec['specs'].get('gpu_score', None),
+                        ram=rec['specs'].get('ram', None),
+                        ram_type=rec['specs'].get('ram_type', None),
+                        storage=rec['specs'].get('storage', None),
+                        final_price=rec.get('price', None)
+                    ),
+                    reasoning=reasoning
+                )
+                recommendations.append(recommended)
+                print(f"   {idx+1}. {rec.get('Brand')} {rec.get('Model')} (TOPSIS: {rec.get('TOPSIS_Score', 0):.4f})")
+        
+        # ========== SYSTEM REQUIREMENTS INFO ==========
+        
+        app_requirements = []
+        if games:
+            print(f"\n📋 System Requirements untuk game:")
+            for game in games:
+                # Try to find in both min and rec dataframes
+                min_req = min_req_df[min_req_df['App'].str.lower() == game.lower()]
+                rec_req = rec_req_df[rec_req_df['App'].str.lower() == game.lower()]
+                
+                if not min_req.empty:
+                    min_row = min_req.iloc[0]
+                    app_requirements.append(SystemRequirements(
+                        app_name=f"{game} (Minimum)",
+                        cpu=min_row.get('CPU', 'N/A'),
+                        gpu=min_row.get('GPU', 'N/A'),
+                        ram=str(min_row.get('RAM', 'N/A'))
+                    ))
+                    print(f"   ✅ {game} - Min: CPU:{min_row.get('CPU', 'N/A')}, GPU:{min_row.get('GPU', 'N/A')}, RAM:{min_row.get('RAM', 'N/A')}")
+                
+                if not rec_req.empty:
+                    rec_row = rec_req.iloc[0]
+                    # Recommended uses CPU_Intel and GPU_NVIDIA if available (not separate CPU/GPU columns)
+                    cpu_rec = rec_row.get('CPU_Intel', rec_row.get('CPU', 'N/A'))
+                    gpu_rec = rec_row.get('GPU_NVIDIA', rec_row.get('GPU', 'N/A'))
+                    ram_rec = rec_row.get('RAM', 'N/A')
+                    
+                    app_requirements.append(SystemRequirements(
+                        app_name=f"{game} (Recommended)",
+                        cpu=cpu_rec,
+                        gpu=gpu_rec,
+                        ram=str(ram_rec)
+                    ))
+                    print(f"   ✅ {game} - Rec: CPU:{cpu_rec}, GPU:{gpu_rec}, RAM:{ram_rec}")
+        
+        return HybridRecommendResponse(
+            status="success",
+            intent=intent,
+            filtered_count=filtered_count,
+            ranked_count=ranked_count,
+            weights_applied=ahp_weights,
+            recommendations=recommendations,
+            message=f"Berhasil merekomendasikan {len(recommendations)} laptop dari {filtered_count} laptop yang cocok.",
+            app_requirements=app_requirements if app_requirements else None
+        )
+    
+    except ValueError as ve:
+        print(f"❌ ValueError: {ve}")
+        raise HTTPException(status_code=400, detail=f"Error: {str(ve)}")
+    except Exception as e:
+        print(f"❌ Error di /api/recommend-hybrid:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
 
 @app.get("/health")
 async def health():

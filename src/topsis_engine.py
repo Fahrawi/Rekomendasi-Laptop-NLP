@@ -121,8 +121,54 @@ def run_topsis(
     # =========================================================================
     print(f"\n[STEP 2] Apply Weighted Matrix")
     
+    # FIX: Map criteria column names to weight keys
+    # Input weights use keys like 'GPU', 'CPU', 'Price'
+    # But criteria_list has column names like 'GPU_score', 'CPU_score', 'Final Price'
+    def map_criteria_to_weight_key(criteria_name, weights_dict):
+        """Map criteria column name to weight dictionary key"""
+        criteria_lower = criteria_name.lower()
+        
+        # Direct mapping
+        if criteria_name in weights_dict:
+            return criteria_name
+        
+        # GPU mapping
+        if 'gpu' in criteria_lower:
+            if 'GPU' in weights_dict:
+                return 'GPU'
+            return criteria_name
+        
+        # CPU mapping
+        if 'cpu' in criteria_lower:
+            if 'CPU' in weights_dict:
+                return 'CPU'
+            return criteria_name
+        
+        # RAM mapping
+        if 'ram' in criteria_lower:
+            if 'RAM' in weights_dict:
+                return 'RAM'
+            return criteria_name
+        
+        # Storage mapping
+        if 'storage' in criteria_lower or 'memory' in criteria_lower:
+            if 'Storage' in weights_dict:
+                return 'Storage'
+            return criteria_name
+        
+        # Price mapping
+        if 'price' in criteria_lower or 'cost' in criteria_lower:
+            if 'Price' in weights_dict:
+                return 'Price'
+            return criteria_name
+        
+        return criteria_name
+    
     # Buat weight array sesuai urutan criteria
-    weights_array = np.array([ahp_weights.get(criteria, 0.2) for criteria in criteria_list])
+    weights_array = np.array([
+        ahp_weights.get(map_criteria_to_weight_key(criteria, ahp_weights), 0.2) 
+        for criteria in criteria_list
+    ])
     
     # Kalikan dengan weights: v_ij = w_i * r_ij
     weighted_matrix = normalized_matrix * weights_array
@@ -349,9 +395,12 @@ def get_topsis_summary(ranked_df: pd.DataFrame, top_n: int = 5) -> Dict[str, Any
             'topsis_score': float(row['TOPSIS_Score']),
             'price': row.get('Final Price', row.get('Price', 'N/A')),
             'specs': {
-                'ram': int(row['RAM']) if 'RAM' in row and pd.notna(row['RAM']) else None,
+                'cpu_name': str(row['CPU']) if 'CPU' in row and pd.notna(row['CPU']) else None,
                 'cpu_score': float(row['CPU_score']) if 'CPU_score' in row and pd.notna(row['CPU_score']) else None,
+                'gpu_name': str(row['GPU']) if 'GPU' in row and pd.notna(row['GPU']) else None,
                 'gpu_score': float(row['GPU_score']) if 'GPU_score' in row and pd.notna(row['GPU_score']) else None,
+                'ram': int(row['RAM']) if 'RAM' in row and pd.notna(row['RAM']) else None,
+                'ram_type': str(row['RAM Type']) if 'RAM Type' in row and pd.notna(row['RAM Type']) else None,
                 'storage': int(row['Storage']) if 'Storage' in row and pd.notna(row['Storage']) else None,
             }
         }

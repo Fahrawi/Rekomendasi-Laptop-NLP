@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rekomendasi Laptop</title>
+    <title>Rekomendasi Laptop Hybrid (NLP + AHP + TOPSIS)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -64,25 +64,6 @@
             font-size: 0.9em;
             color: #495057;
         }
-        .requirements, .selected-specs {
-            margin-top: 15px;
-            margin-bottom: 15px;
-        }
-        .game-req, .spec-item {
-            background: #f8f9fa;
-            padding: 12px;
-            margin-bottom: 12px;
-            border-radius: 5px;
-            border-left: 4px solid #007bff;
-        }
-        .game-req h4 {
-            margin: 0 0 8px 0;
-            color: #007bff;
-        }
-        .req-row, .spec-row {
-            font-size: 0.85em;
-            margin: 5px 0;
-        }
         .loading {
             text-align: center;
             font-style: italic;
@@ -90,9 +71,12 @@
             margin: 20px;
         }
         .error {
-            color: red;
+            color: #d32f2f;
             text-align: center;
             margin: 20px;
+            padding: 15px;
+            background-color: #ffebee;
+            border-radius: 4px;
         }
         table {
             width: 100%;
@@ -110,21 +94,10 @@
         }
         .clickable-row {
             cursor: pointer;
+            background-color: #d4edda;
         }
         .clickable-row:hover {
-            background-color: #f1f1f1;
-        }
-        .category-recommended {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .category-mixed {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        .category-minimum {
-            background-color: #cce5ff;
-            color: #004085;
+            background-color: #c3e6cb;
         }
         .footer-note {
             margin-top: 10px;
@@ -170,9 +143,6 @@
             width: 30%;
             background-color: #f2f2f2;
         }
-        .modal td {
-            background-color: white;
-        }
         .game-comments {
             background-color: #f8f9fa;
             padding: 10px;
@@ -183,31 +153,35 @@
 </head>
 <body>
     <div class="container">
-        <h1>Rekomendasi Laptop</h1>
+        <h1>🎯 Rekomendasi Laptop Hybrid</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 20px;">
+            Menggunakan NLP Pipeline + Smart Filters (AHP) + TOPSIS Ranking
+        </p>
+        
         <div class="search-form">
-            <input type="text" id="query" placeholder="Contoh: laptop asus rog 16gb ram buat spiderman remastered" />
+            <input type="text" id="query" placeholder="Contoh: mau main hi3rd dengan budget 20 juta" />
             <label for="limit" style="margin-left: 10px;">Jumlah:</label>
             <select id="limit">
+                <option value="5">5</option>
                 <option value="10">10</option>
                 <option value="20" selected>20</option>
                 <option value="50">50</option>
-                <option value="100">100</option>
             </select>
-            <button onclick="search()">Cari Laptop</button>
+            <button onclick="search()">🔍 Cari Laptop</button>
         </div>
+        
         <div id="detectedInfo" class="detected-info" style="display: none;"></div>
-        <div id="requirementsArea" class="requirements" style="display: none;"></div>
-        <div id="selectedSpecsArea" class="selected-specs" style="display: none;"></div>
         <div id="resultArea"></div>
     </div>
 
     <script>
-        const API_URL = 'http://localhost:8000/recommend';
+        const API_URL = 'http://localhost:8000/api/recommend-hybrid';
         let laptopsData = [];
 
         async function search() {
             const query = document.getElementById('query').value.trim();
             const limit = document.getElementById('limit').value;
+            
             if (!query) {
                 alert('Silakan masukkan query pencarian.');
                 return;
@@ -215,100 +189,168 @@
 
             const resultArea = document.getElementById('resultArea');
             const detectedInfo = document.getElementById('detectedInfo');
-            const requirementsArea = document.getElementById('requirementsArea');
-            const selectedSpecsArea = document.getElementById('selectedSpecsArea');
-            resultArea.innerHTML = '<div class="loading">Memuat rekomendasi...</div>';
+            
+            resultArea.innerHTML = '<div class="loading">⏳ Memproses query dengan NLP, filtering, dan TOPSIS...</div>';
             detectedInfo.style.display = 'none';
-            requirementsArea.style.display = 'none';
-            selectedSpecsArea.style.display = 'none';
             laptopsData = [];
 
             try {
-                const url = `${API_URL}?query=${encodeURIComponent(query)}&limit=${limit}`;
-                const response = await fetch(url);
+                const requestBody = {
+                    query: query,
+                    top_n: parseInt(limit)
+                };
+                
+                console.log('📤 Sending request:', requestBody);
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
                 }
+                
                 const data = await response.json();
+                console.log('📥 Response:', data);
 
                 if (data.status === 'success') {
+                    // Display extracted intent and filtering info
                     let infoHtml = '';
-                    if (data.detected_games?.length) infoHtml += `<strong>🎮 Game terdeteksi:</strong> ${data.detected_games.join(', ')}<br>`;
-                    if (data.detected_laptops?.length) infoHtml += `<strong>💻 Laptop/Brand terdeteksi:</strong> ${data.detected_laptops.join(', ')}<br>`;
-                    if (data.detected_budget) infoHtml += `<strong>💰 Budget terdeteksi:</strong> Rp ${data.detected_budget}<br>`;
-                    if (data.detected_ram?.length) infoHtml += `<strong>⚡ RAM terdeteksi:</strong> ${data.detected_ram.join(', ')} GB<br>`;
-                    if (infoHtml) {
-                        detectedInfo.innerHTML = infoHtml;
-                        detectedInfo.style.display = 'block';
+                    infoHtml += `<strong>🎯 Intent Terdeteksi:</strong> ${formatIntent(data.intent)}<br>`;
+                    infoHtml += `<strong>✅ Filtered (Phase 1):</strong> ${data.filtered_count} laptop`;
+                    
+                    if (data.weights_applied && Object.keys(data.weights_applied).length) {
+                        const weights = Object.entries(data.weights_applied)
+                            .map(([k, v]) => `${k}: ${(v * 100).toFixed(1)}%`)
+                            .join(', ');
+                        infoHtml += `<br><strong>⚖️ Weights (AHP):</strong> ${weights}`;
+                    }
+                    
+                    infoHtml += `<br><strong>📊 Ranked (Phase 2 TOPSIS):</strong> ${data.ranked_count} laptop`;
+                    
+                    detectedInfo.innerHTML = infoHtml;
+                    detectedInfo.style.display = 'block';
+                    
+                    // Display system requirements if available
+                    if (data.app_requirements && data.app_requirements.length > 0) {
+                        displaySystemRequirements(data.app_requirements);
                     }
 
-                    if (data.game_requirements && Object.keys(data.game_requirements).length) {
-                        requirementsArea.innerHTML = displayGameRequirements(data.game_requirements);
-                        requirementsArea.style.display = 'block';
-                    }
-
-                    if (data.selected_specs) {
-                        selectedSpecsArea.innerHTML = displaySelectedSpecs(data.selected_specs);
-                        selectedSpecsArea.style.display = 'block';
-                    }
-
-                    if (!data.data?.length) {
-                        resultArea.innerHTML = '<div class="error">Tidak ada rekomendasi laptop.</div>';
+                    if (!data.recommendations || data.recommendations.length === 0) {
+                        resultArea.innerHTML = `<div class="error">❌ ${data.message || 'Tidak ada rekomendasi laptop yang sesuai.'}</div>`;
                         return;
                     }
-                    displayResults(data.data);
+                    
+                    displayResults(data.recommendations);
                 } else {
-                    throw new Error(data.message || 'Gagal');
+                    throw new Error(data.message || 'Gagal mendapatkan rekomendasi');
                 }
             } catch (error) {
-                console.error(error);
-                resultArea.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                console.error('Error:', error);
+                resultArea.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
             }
         }
 
-        function displayGameRequirements(requirements) {
-            let html = '<h3>📋 Persyaratan Game yang Terdeteksi</h3>';
-            for (const [game, req] of Object.entries(requirements)) {
-                html += `
-                    <div class="game-req">
-                        <h4>${escapeHtml(game)}</h4>
-                        <div class="req-row"><strong>Minimum:</strong> CPU Intel ${escapeHtml(req.min.cpu_intel)} / AMD ${escapeHtml(req.min.cpu_amd)}, GPU NVIDIA ${escapeHtml(req.min.gpu_nvidia)} / AMD ${escapeHtml(req.min.gpu_amd)} / Intel ${escapeHtml(req.min.gpu_intel)}, RAM ${escapeHtml(req.min.ram)}, Storage ${escapeHtml(req.min.storage)}</div>
-                        <div class="req-row"><strong>Recommended:</strong> CPU Intel ${escapeHtml(req.rec.cpu_intel)} / AMD ${escapeHtml(req.rec.cpu_amd)}, GPU NVIDIA ${escapeHtml(req.rec.gpu_nvidia)} / AMD ${escapeHtml(req.rec.gpu_amd)} / Intel ${escapeHtml(req.rec.gpu_intel)}, RAM ${escapeHtml(req.rec.ram)}, Storage ${escapeHtml(req.rec.storage)}</div>
-                    </div>
-                `;
-            }
-            return html;
+        function formatIntent(intent) {
+            const display = {
+                'FIND_LAPTOP_FOR_GAME': '🎮 Gaming',
+                'FIND_LAPTOP_FOR_CONTENT_CREATION': '🎬 Content Creation',
+                'AI_DEVELOPMENT': '🤖 AI Development',
+                'PROGRAMMING': '💻 Programming',
+                'WEB_DEVELOPMENT': '🌐 Web Development',
+                'SCIENTIFIC_COMPUTING': '🔬 Scientific Computing',
+                'DAILY_USE': '📱 Daily Use',
+                'OFFICE_USE': '📊 Office',
+                'LIGHT_TASKS': '⚡ Light Tasks',
+                'FIND_LAPTOP_GENERAL': '📋 General'
+            };
+            return display[intent] || intent;
         }
 
-        function displaySelectedSpecs(specs) {
-            let html = '<h3>⭐ Spesifikasi yang Digunakan untuk Filtering</h3><div class="spec-item">';
-            html += '<div class="spec-title">Minimum:</div>';
-            html += `<div class="spec-row">CPU Intel: ${escapeHtml(specs.min.cpu_intel.name)} (${escapeHtml(specs.min.cpu_intel.game)})</div>`;
-            html += `<div class="spec-row">CPU AMD: ${escapeHtml(specs.min.cpu_amd.name)} (${escapeHtml(specs.min.cpu_amd.game)})</div>`;
-            html += `<div class="spec-row">GPU NVIDIA: ${escapeHtml(specs.min.gpu_nvidia.name)} (${escapeHtml(specs.min.gpu_nvidia.game)})</div>`;
-            html += `<div class="spec-row">GPU AMD: ${escapeHtml(specs.min.gpu_amd.name)} (${escapeHtml(specs.min.gpu_amd.game)})</div>`;
-            html += `<div class="spec-row">GPU Intel: ${escapeHtml(specs.min.gpu_intel.name)} (${escapeHtml(specs.min.gpu_intel.game)})</div>`;
-            html += `<div class="spec-row">RAM: ${specs.min.ram} GB</div><div class="spec-row">Storage: ${specs.min.storage} GB</div>`;
-            html += '<div class="spec-title">Recommended:</div>';
-            html += `<div class="spec-row">CPU Intel: ${escapeHtml(specs.rec.cpu_intel.name)} (${escapeHtml(specs.rec.cpu_intel.game)})</div>`;
-            html += `<div class="spec-row">CPU AMD: ${escapeHtml(specs.rec.cpu_amd.name)} (${escapeHtml(specs.rec.cpu_amd.game)})</div>`;
-            html += `<div class="spec-row">GPU NVIDIA: ${escapeHtml(specs.rec.gpu_nvidia.name)} (${escapeHtml(specs.rec.gpu_nvidia.game)})</div>`;
-            html += `<div class="spec-row">GPU AMD: ${escapeHtml(specs.rec.gpu_amd.name)} (${escapeHtml(specs.rec.gpu_amd.game)})</div>`;
-            html += `<div class="spec-row">GPU Intel: ${escapeHtml(specs.rec.gpu_intel.name)} (${escapeHtml(specs.rec.gpu_intel.game)})</div>`;
-            html += `<div class="spec-row">RAM: ${specs.rec.ram} GB</div><div class="spec-row">Storage: ${specs.rec.storage} GB</div>`;
-            html += '</div>';
-            return html;
-        }
-
-        function displayResults(laptops) {
+        function displaySystemRequirements(appReqs) {
             const resultArea = document.getElementById('resultArea');
-            laptopsData = laptops;
+            
+            // Create section for requirements
+            const reqSection = document.createElement('div');
+            reqSection.style.marginBottom = '20px';
+            reqSection.style.backgroundColor = '#f0f8ff';
+            reqSection.style.padding = '15px';
+            reqSection.style.borderRadius = '8px';
+            reqSection.style.borderLeft = '4px solid #4a90e2';
+            
+            const reqTitle = document.createElement('h3');
+            reqTitle.textContent = '📋 Spesifikasi Sistem yang Dibutuhkan';
+            reqTitle.style.marginTop = '0';
+            reqSection.appendChild(reqTitle);
+            
+            const reqTable = document.createElement('table');
+            reqTable.style.width = '100%';
+            reqTable.style.borderCollapse = 'collapse';
+            
+            const reqThead = document.createElement('thead');
+            const reqHeaderRow = document.createElement('tr');
+            ['Game/App', 'CPU', 'GPU', 'RAM'].forEach(h => {
+                const th = document.createElement('th');
+                th.textContent = h;
+                th.style.padding = '10px';
+                th.style.backgroundColor = '#4a90e2';
+                th.style.color = 'white';
+                th.style.textAlign = 'left';
+                reqHeaderRow.appendChild(th);
+            });
+            reqThead.appendChild(reqHeaderRow);
+            reqTable.appendChild(reqThead);
+            
+            const reqTbody = document.createElement('tbody');
+            appReqs.forEach((req, idx) => {
+                const row = document.createElement('tr');
+                row.style.backgroundColor = idx % 2 === 0 ? '#ffffff' : '#f9f9f9';
+                
+                [req.app_name, req.cpu, req.gpu, req.ram].forEach(cell => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+                    td.style.padding = '10px';
+                    td.style.borderBottom = '1px solid #ddd';
+                    td.style.fontSize = '0.9em';
+                    row.appendChild(td);
+                });
+                reqTbody.appendChild(row);
+            });
+            reqTable.appendChild(reqTbody);
+            
+            reqSection.appendChild(reqTable);
+            resultArea.appendChild(reqSection);
+        }
 
-            // Buat tabel dengan createElement agar lebih aman
+        function displayResults(recommendations) {
+            const resultArea = document.getElementById('resultArea');
+            laptopsData = recommendations.map(r => ({
+                Brand: r.brand,
+                Model: r.model,
+                CPU_Name: r.specs.cpu_name || '-',
+                CPU_Score: r.specs.cpu_score ? `${r.specs.cpu_score?.toFixed(0)}` : '-',
+                GPU_Name: r.specs.gpu_name || '-',
+                GPU_Score: r.specs.gpu_score ? `${r.specs.gpu_score?.toFixed(0)}` : '-',
+                RAM: r.specs.ram,
+                RAM_Type: r.specs.ram_type || '-',
+                Storage: r.specs.storage,
+                Storage_type: 'SSD',
+                Final_Price: r.specs.final_price,
+                Match_Score: r.topsis_score,
+                Laptop: `${r.brand} ${r.model}`,
+                Reasoning: r.reasoning,
+                TOPSIS_Score: r.topsis_score
+            }));
+
             const table = document.createElement('table');
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
-            const headers = ['Brand', 'Model', 'CPU', 'GPU', 'RAM (GB)', 'Storage (GB)', 'Storage Type', 'Harga (Rp)', 'Kategori', 'Match Score'];
+            const headers = ['No', 'Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage (GB)', 'Harga (Rp)', 'TOPSIS Score'];
             headers.forEach(h => {
                 const th = document.createElement('th');
                 th.textContent = h;
@@ -318,16 +360,23 @@
             table.appendChild(thead);
 
             const tbody = document.createElement('tbody');
-            for (let i = 0; i < laptops.length; i++) {
-                const l = laptops[i];
+            recommendations.forEach((r, idx) => {
                 const row = document.createElement('tr');
-                row.className = `clickable-row ${l.Category === 'Recommended' ? 'category-recommended' : (l.Category === 'Mixed' ? 'category-mixed' : 'category-minimum')}`;
-                row.setAttribute('data-index', i);
+                row.className = 'clickable-row';
+                row.setAttribute('data-index', idx);
+                const cpuDisplay = r.specs.cpu_name ? `${r.specs.cpu_name}` : (r.specs.cpu_score ? `${r.specs.cpu_score.toFixed(0)}` : '-');
+                const gpuDisplay = r.specs.gpu_name ? `${r.specs.gpu_name}` : (r.specs.gpu_score ? `${r.specs.gpu_score.toFixed(0)}` : '-');
+                const ramDisplay = r.specs.ram ? `${r.specs.ram}GB ${r.specs.ram_type || ''}` : '-';
                 const cells = [
-                    l.Brand, l.Model, l.CPU, l.GPU,
-                    l.RAM, l.Storage, l.Storage_type || '-',
-                    formatRupiah(l.Final_Price), l.Category,
-                    l.Match_Score ? l.Match_Score.toFixed(2) : '-'
+                    r.rank || (idx + 1),
+                    r.brand,
+                    r.model,
+                    cpuDisplay,
+                    gpuDisplay,
+                    ramDisplay,
+                    r.specs.storage,
+                    formatRupiah(r.specs.final_price),
+                    r.topsis_score.toFixed(4)
                 ];
                 cells.forEach(cell => {
                     const td = document.createElement('td');
@@ -335,14 +384,20 @@
                     row.appendChild(td);
                 });
                 tbody.appendChild(row);
-            }
+            });
             table.appendChild(tbody);
-            resultArea.innerHTML = '';
+            
+            // Add title for recommendations
+            const recTitle = document.createElement('h3');
+            recTitle.textContent = '🏆 Rekomendasi Laptop';
+            recTitle.style.marginTop = '30px';
+            resultArea.appendChild(recTitle);
+            
             resultArea.appendChild(table);
 
             const footer = document.createElement('div');
             footer.className = 'footer-note';
-            footer.textContent = `Menampilkan ${laptops.length} laptop (klik baris untuk detail)`;
+            footer.textContent = `✨ Menampilkan ${recommendations.length} laptop hasil TOPSIS ranking (klik baris untuk detail)`;
             resultArea.appendChild(footer);
         }
 
@@ -383,17 +438,19 @@
             closeSpan.onclick = () => modal.remove();
 
             const title = document.createElement('h2');
-            title.textContent = laptop.Laptop || `${laptop.Brand} ${laptop.Model}`;;
+            title.textContent = `${laptop.Brand} ${laptop.Model}`;
 
             const detailTable = document.createElement('table');
             const rows = [
-                ['CPU', laptop.CPU],
-                ['GPU', laptop.GPU],
+                ['CPU', laptop.CPU_Name],
+                ['CPU Score', laptop.CPU_Score],
+                ['GPU', laptop.GPU_Name],
+                ['GPU Score', laptop.GPU_Score],
                 ['RAM', `${laptop.RAM} GB`],
+                ['RAM Type', laptop.RAM_Type],
                 ['Storage', `${laptop.Storage} GB (${laptop.Storage_type || '-'})`],
                 ['Harga', formatRupiah(laptop.Final_Price)],
-                ['Kategori', laptop.Category],
-                ['Match Score', laptop.Match_Score ? laptop.Match_Score.toFixed(2) : '-']
+                ['TOPSIS Score', laptop.TOPSIS_Score ? laptop.TOPSIS_Score.toFixed(4) : '-']
             ];
             rows.forEach(([label, value]) => {
                 const tr = document.createElement('tr');
@@ -408,10 +465,10 @@
 
             const commentsDiv = document.createElement('div');
             commentsDiv.className = 'game-comments';
-            if (laptop.game_comments) {
-                commentsDiv.innerHTML = `<h3>🎮 Komentar Performa Game</h3>${laptop.game_comments}`;
+            if (laptop.Reasoning) {
+                commentsDiv.innerHTML = `<h3>💡 Alasan Rekomendasi</h3><p>${escapeHtml(laptop.Reasoning)}</p>`;
             } else {
-                commentsDiv.innerHTML = `<h3>🎮 Komentar Performa Game</h3><p>Tidak ada komentar.</p>`;
+                commentsDiv.innerHTML = `<h3>💡 Alasan Rekomendasi</h3><p>Laptop ini cocok untuk kebutuhan Anda berdasarkan skor TOPSIS.</p>`;
             }
 
             modalContent.appendChild(closeSpan);

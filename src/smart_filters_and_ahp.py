@@ -380,11 +380,11 @@ def get_intent_based_weights(intent: str) -> Dict[str, float]:
         # CPU secondary (untuk physics, AI). RAM moderate (16GB enough).
         # Storage for loading times. Price adalah tradeoff.
         "FIND_LAPTOP_FOR_GAME": {
-            'CPU': 0.20,           # Secondary - mostly for physics/AI
-            'GPU': 0.40,           # PRIMARY - determines FPS & visual quality
-            'RAM': 0.15,           # Tertiary - 16GB enough
-            'Storage': 0.10,       # SSD untuk loading speed
-            'Price': 0.15,         # Budget constraint tradeoff
+            'CPU': 0.15,           # Secondary - mostly for physics/AI
+            'GPU': 0.55,           # PRIMARY - determines FPS & visual quality (INCREASED for better ranking)
+            'RAM': 0.10,           # Tertiary - 16GB minimum already filtered by Phase 1
+            'Storage': 0.05,       # Minimum 512GB already ensured by Phase 1
+            'Price': 0.10,         # Budget constraint tradeoff (reduced for GPU priority)
             'Storage_Type_Bonus': 0.05  # SSD worth extra
         },
         
