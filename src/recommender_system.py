@@ -7,24 +7,35 @@ from src.recommender_core import categorize_laptops_adapted, get_cpu_req_score, 
 
 def recognize_intent_simple(user_query, found_games, found_laptops_entities, extracted_budget):
     query_lower = user_query.lower()
+    
+    # 1. Comparison intent (prioritas tertinggi)
     compare_keywords = ['bandingkan', 'bandingkan dengan', 'versus', 'vs', 'compare']
     if any(keyword in query_lower for keyword in compare_keywords) and len(found_laptops_entities) >= 2:
         return "COMPARE_LAPTOPS"
+    
+    # 2. Most expensive laptop
     expensive_keywords = ['termahal', 'paling mahal', 'harga tinggi']
     if any(keyword in query_lower for keyword in expensive_keywords):
         return "FIND_MOST_EXPENSIVE_LAPTOP"
+    
+    # 3. Cheapest laptop (dengan atau tanpa game)
     cheapest_keywords = ['termurah', 'paling murah', 'harga rendah', 'murah']
     if any(keyword in query_lower for keyword in cheapest_keywords):
         if found_games:
             return "FIND_CHEAPEST_LAPTOP_FOR_GAME"
         if extracted_budget is not None:
             return "FILTER_LAPTOPS"
+    
+    # 4. Filter intent (tanpa game)
     filter_keywords = ['brand', 'merek', 'model', 'seri', 'tipe', 'type', 'budget', 'harga', 'ram']
     if (any(keyword in query_lower for keyword in filter_keywords) or found_laptops_entities or extracted_budget is not None) and not found_games:
         return "FILTER_LAPTOPS"
-    game_keywords = ['main', 'untuk', 'buat', 'bermain', 'playing', 'cocok', 'game', 'gaming', 'butuh']
-    if found_games and any(keyword in query_lower for keyword in game_keywords):
+    
+    # 5. Jika ada game terdeteksi, default ke FIND_LAPTOP_FOR_GAME
+    if found_games:
         return "FIND_LAPTOP_FOR_GAME"
+    
+    # 6. Tidak ada game dan tidak ada intent spesifik
     return "QUERY_NOT_PROCESSED"
 
 

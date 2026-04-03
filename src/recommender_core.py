@@ -1,3 +1,4 @@
+# src/recommender_core.py
 import pandas as pd
 import numpy as np
 
@@ -42,13 +43,23 @@ def categorize_laptops_adapted(df_laptops_filtered, req_row_min, req_row_rec, ra
     if df_laptops_filtered.empty:
         return pd.DataFrame()
 
-    ram_min_req = req_row_min.get('RAM', 0)
-    if pd.isna(ram_min_req) or not isinstance(ram_min_req, (int, float)): ram_min_req = 0
-    storage_min_req = req_row_min.get('File Size', 0)
-    if pd.isna(storage_min_req) or not isinstance(storage_min_req, (int, float)): storage_min_req = 0
+    # Helper untuk ekstrak angka dari string (misal "32 GB" -> 32)
+    def extract_number(val):
+        if isinstance(val, (int, float)):
+            return int(val)
+        if isinstance(val, str):
+            digits = ''.join(filter(str.isdigit, val))
+            return int(digits) if digits else 0
+        return 0
+
+    # Nilai minimum RAM dan Storage (numeric)
+    ram_min_req = extract_number(req_row_min.get('RAM', 0))
+    storage_min_req = extract_number(req_row_min.get('File Size', 0))
+    # Nilai recommended RAM (numeric)
+    ram_rec_req = extract_number(req_row_rec.get('RAM', 0))
 
     def calculate_match(row):
-        # Ambil skor recommended sesuai vendor laptop
+        # Skor recommended sesuai vendor
         cpu_req_rec = get_cpu_req_score(row, req_row_rec)
         gpu_req_rec = get_gpu_req_score(row, req_row_rec)
         row_cpu_score = row['CPU_score'] if pd.notna(row['CPU_score']) else 0.0
@@ -73,7 +84,7 @@ def categorize_laptops_adapted(df_laptops_filtered, req_row_min, req_row_rec, ra
         return final_score
 
     def categorize(row):
-        # Ambil skor minimum dan recommended sesuai vendor laptop
+        # Skor minimum dan recommended (vendor-aware)
         cpu_min_req_score = get_cpu_req_score(row, req_row_min)
         gpu_min_req_score = get_gpu_req_score(row, req_row_min)
         cpu_rec_req_score = get_cpu_req_score(row, req_row_rec)
@@ -84,23 +95,25 @@ def categorize_laptops_adapted(df_laptops_filtered, req_row_min, req_row_rec, ra
         row_ram = row['RAM'] if pd.notna(row['RAM']) else -1
         row_storage = row['Storage'] if pd.notna(row['Storage']) else -1
 
-        ram_min_req_val = req_row_min.get('RAM', 0)
-        storage_min_req_val = req_row_min.get('File Size', 0)
-
+        # Minimum checks (RAM & Storage sudah numeric)
         cpu_meets_min = (pd.isna(cpu_min_req_score) or cpu_min_req_score <= 0) or (pd.notna(row_cpu_score) and row_cpu_score >= cpu_min_req_score)
         gpu_meets_min = (pd.isna(gpu_min_req_score) or gpu_min_req_score <= 0) or (pd.notna(row_gpu_score) and row_gpu_score >= gpu_min_req_score)
-        ram_meets_min = (pd.isna(ram_min_req_val) or ram_min_req_val <= 0) or (pd.notna(row_ram) and row_ram >= ram_min_req_val)
-        storage_meets_min = (pd.isna(storage_min_req_val) or storage_min_req_val <= 0) or (pd.notna(row_storage) and row_storage >= storage_min_req_val)
+        ram_meets_min = (pd.isna(ram_min_req) or ram_min_req <= 0) or (pd.notna(row_ram) and row_ram >= ram_min_req)
+        storage_meets_min = (pd.isna(storage_min_req) or storage_min_req <= 0) or (pd.notna(row_storage) and row_storage >= storage_min_req)
 
         if not (cpu_meets_min and gpu_meets_min and ram_meets_min and storage_meets_min):
             return 'Disqualified'
 
+        # Recommended checks (dengan RAM)
         cpu_meets_rec = (pd.notna(cpu_rec_req_score) and cpu_rec_req_score > 0) and (pd.notna(row_cpu_score) and row_cpu_score >= cpu_rec_req_score)
         gpu_meets_rec = (pd.notna(gpu_rec_req_score) and gpu_rec_req_score > 0) and (pd.notna(row_gpu_score) and row_gpu_score >= gpu_rec_req_score)
+        ram_meets_rec = (pd.notna(ram_rec_req) and ram_rec_req > 0) and (pd.notna(row_ram) and row_ram >= ram_rec_req)
 
-        if cpu_meets_rec and gpu_meets_rec:
+        meets_count = (1 if cpu_meets_rec else 0) + (1 if gpu_meets_rec else 0) + (1 if ram_meets_rec else 0)
+
+        if meets_count == 3:
             return 'Recommended'
-        elif cpu_meets_rec or gpu_meets_rec:
+        elif meets_count >= 1:
             return 'Mixed'
         else:
             return 'Minimum'
@@ -108,11 +121,14 @@ def categorize_laptops_adapted(df_laptops_filtered, req_row_min, req_row_rec, ra
     df_categorized = df_laptops_filtered.copy()
     if df_categorized.empty:
         return pd.DataFrame()
+
     df_categorized['Match_Score'] = df_categorized.apply(calculate_match, axis=1)
     df_categorized['Category'] = df_categorized.apply(categorize, axis=1)
     df_final = df_categorized[df_categorized['Category'] != 'Disqualified'].copy()
-    cols = ['id', 'Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price', 'Category', 'Match_Score']
+
+    # Pilih kolom output, prioritaskan id jika ada
+    base_cols = ['Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price', 'Category', 'Match_Score']
     if 'id' in df_final.columns:
-        return df_final[cols]
+        return df_final[['id'] + base_cols]
     else:
-        return df_final[['Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price', 'Category', 'Match_Score']]
+        return df_final[base_cols]

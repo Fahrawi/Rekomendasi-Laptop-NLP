@@ -347,35 +347,80 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             ram_tokens.add(f"{ram_value}giga")
             ram_tokens.add(f"{ram_value} giga")
 
-    # --- budget extraction (unchanged) ---
-    pattern_range_with_keyword = r'(?:harga|rp|rp\.|budget)\s*:?\s*(\d+(?:[,\.]\d+)?)\s*(?:sampai|hingga|-)\s*(\d+(?:[,\.]\d+)?)\s*(rb|ribu|jt|juta)'
-    match_range_keyword = re.search(pattern_range_with_keyword, query_lower, re.IGNORECASE)
-    if match_range_keyword:
+    # --- budget extraction with dot thousand separator and max/min keywords ---
+    # 1. Budget dengan kata kunci max / min (prioritas tertinggi)
+    pattern_max = r'(?:maksimal|max)\s*:?\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(rb|ribu|jt|juta|miliar|milyar)?'
+    match_max = re.search(pattern_max, query_lower, re.IGNORECASE)
+    if match_max:
         try:
-            amount1 = float(match_range_keyword.group(1).replace(',', '.'))
-            amount2 = float(match_range_keyword.group(2).replace(',', '.'))
-            unit = match_range_keyword.group(3).lower()
-            if unit in ['juta', 'jt']:
-                amount1 = int(amount1 * 1_000_000)
-                amount2 = int(amount2 * 1_000_000)
-            elif unit in ['ribu', 'rb']:
-                amount1 = int(amount1 * 1_000)
-                amount2 = int(amount2 * 1_000)
-            else:
-                amount1 = int(amount1)
-                amount2 = int(amount2)
-            extracted_budget = (min(amount1, amount2), max(amount1, amount2))
-            budget_span = match_range_keyword.span(0)
+            amount_str = match_max.group(1).replace('.', '')
+            amount = float(amount_str.replace(',', '.'))
+            unit = match_max.group(2)
+            if unit:
+                unit = unit.lower()
+                if unit in ['juta', 'jt']:
+                    amount = int(amount * 1_000_000)
+                elif unit in ['ribu', 'rb']:
+                    amount = int(amount * 1_000)
+                elif unit in ['miliar', 'milyar']:
+                    amount = int(amount * 1_000_000_000)
+            extracted_budget = int(amount)
+            budget_span = match_max.span(0)
         except:
             pass
 
     if extracted_budget is None:
-        pattern_range_no_keyword = r'(\d+(?:[,\.]\d+)?)\s*(?:sampai|hingga|-)\s*(\d+(?:[,\.]\d+)?)\s*(rb|ribu|jt|juta)'
+        pattern_min = r'(?:minimal|min)\s*:?\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(rb|ribu|jt|juta|miliar|milyar)?'
+        match_min = re.search(pattern_min, query_lower, re.IGNORECASE)
+        if match_min:
+            try:
+                amount_str = match_min.group(1).replace('.', '')
+                amount = float(amount_str.replace(',', '.'))
+                unit = match_min.group(2)
+                if unit:
+                    unit = unit.lower()
+                    if unit in ['juta', 'jt']:
+                        amount = int(amount * 1_000_000)
+                    elif unit in ['ribu', 'rb']:
+                        amount = int(amount * 1_000)
+                    elif unit in ['miliar', 'milyar']:
+                        amount = int(amount * 1_000_000_000)
+                extracted_budget = int(amount)
+                budget_span = match_min.span(0)
+            except:
+                pass
+
+    # 2. Range dengan kata kunci budget
+    if extracted_budget is None:
+        pattern_range_with_keyword = r'(?:harga|rp|rp\.|budget)\s*:?\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(?:sampai|hingga|-)\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(rb|ribu|jt|juta)'
+        match_range_keyword = re.search(pattern_range_with_keyword, query_lower, re.IGNORECASE)
+        if match_range_keyword:
+            try:
+                amount1 = float(match_range_keyword.group(1).replace('.', '').replace(',', '.'))
+                amount2 = float(match_range_keyword.group(2).replace('.', '').replace(',', '.'))
+                unit = match_range_keyword.group(3).lower()
+                if unit in ['juta', 'jt']:
+                    amount1 = int(amount1 * 1_000_000)
+                    amount2 = int(amount2 * 1_000_000)
+                elif unit in ['ribu', 'rb']:
+                    amount1 = int(amount1 * 1_000)
+                    amount2 = int(amount2 * 1_000)
+                else:
+                    amount1 = int(amount1)
+                    amount2 = int(amount2)
+                extracted_budget = (min(amount1, amount2), max(amount1, amount2))
+                budget_span = match_range_keyword.span(0)
+            except:
+                pass
+
+    # 3. Range tanpa kata kunci
+    if extracted_budget is None:
+        pattern_range_no_keyword = r'(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(?:sampai|hingga|-)\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(rb|ribu|jt|juta)'
         match_range = re.search(pattern_range_no_keyword, query_lower, re.IGNORECASE)
         if match_range:
             try:
-                amount1 = float(match_range.group(1).replace(',', '.'))
-                amount2 = float(match_range.group(2).replace(',', '.'))
+                amount1 = float(match_range.group(1).replace('.', '').replace(',', '.'))
+                amount2 = float(match_range.group(2).replace('.', '').replace(',', '.'))
                 unit = match_range.group(3).lower()
                 if unit in ['juta', 'jt']:
                     amount1 = int(amount1 * 1_000_000)
@@ -391,12 +436,13 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             except:
                 pass
 
+    # 4. Single value dengan kata kunci
     if extracted_budget is None:
-        pattern_single_with_keyword = r'(?:harga|rp|rp\.|budget)\s*:?\s*(\d+(?:[,\.]\d+)?)\s*(rb|ribu|jt|juta)?'
+        pattern_single_with_keyword = r'(?:harga|rp|rp\.|budget)\s*:?\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(rb|ribu|jt|juta)?'
         match_single_keyword = re.search(pattern_single_with_keyword, query_lower, re.IGNORECASE)
         if match_single_keyword:
             try:
-                amount = float(match_single_keyword.group(1).replace(',', '.'))
+                amount = float(match_single_keyword.group(1).replace('.', '').replace(',', '.'))
                 unit = match_single_keyword.group(2)
                 if unit is None:
                     extracted_budget = int(amount)
@@ -412,12 +458,13 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             except:
                 pass
 
+    # 5. Single value tanpa kata kunci
     if extracted_budget is None:
-        pattern_single_no_keyword = r'\b(\d+(?:[,\.]\d+)?)\s*(rb|ribu|jt|juta)\b'
+        pattern_single_no_keyword = r'\b(\d{1,3}(?:\.\d{3})*(?:,\d+)?)\s*(rb|ribu|jt|juta)\b'
         match_single = re.search(pattern_single_no_keyword, query_lower, re.IGNORECASE)
         if match_single:
             try:
-                amount = float(match_single.group(1).replace(',', '.'))
+                amount = float(match_single.group(1).replace('.', '').replace(',', '.'))
                 unit = match_single.group(2).lower()
                 if unit in ['juta', 'jt']:
                     extracted_budget = int(amount * 1_000_000)
@@ -429,6 +476,7 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
             except:
                 pass
 
+    # 6. Text-based budget
     if extracted_budget is None:
         text_budget, text_budget_span = extract_text_budget(user_query)
         if text_budget is not None:
