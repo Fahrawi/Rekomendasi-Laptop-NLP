@@ -111,5 +111,8 @@ def categorize_laptops_adapted(df_laptops_filtered, req_row_min, req_row_rec, ra
     df_categorized['Match_Score'] = df_categorized.apply(calculate_match, axis=1)
     df_categorized['Category'] = df_categorized.apply(categorize, axis=1)
     df_final = df_categorized[df_categorized['Category'] != 'Disqualified'].copy()
-    cols = ['Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price', 'Category', 'Match_Score']
-    return df_final[[c for c in cols if c in df_final.columns]]
+    cols = ['id', 'Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price', 'Category', 'Match_Score']
+    if 'id' in df_final.columns:
+        return df_final[cols]
+    else:
+        return df_final[['Brand', 'Model', 'CPU', 'GPU', 'RAM', 'Storage', 'Storage type', 'Final Price', 'Category', 'Match_Score']]
