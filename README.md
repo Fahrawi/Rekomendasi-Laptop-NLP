@@ -36,20 +36,21 @@ flowchart TD
   A[User Query] --> B[NLP Pipeline]
   B --> C[Extract intent, budget, games, preference]
   C --> D[Phase 1 Smart Filters]
-  D --> E{Gaming query?}
+  D --> E{Target apps / benchmark data detected?}
   E -- Yes --> F[Benchmark minimum check]
   E -- No --> G[Intent-based AHP weights]
-  F --> G
-  G --> H[TOPSIS ranking]
-  H --> I{Preference category}
-  I -- CHEAP --> J[Sort by lowest price]
-  I -- PERFORMANCE --> K[Sort by highest CPU/GPU]
-  I -- LIGHTWEIGHT --> L[Sort by laptop weight if available]
-  I -- VALUE / BALANCED --> M[Use TOPSIS score order]
-  J --> N[JSON response]
-  K --> N
-  L --> N
-  M --> N
+  F --> H[Benchmark fit score]
+  G --> H
+  H --> I[TOPSIS ranking]
+  I --> J{Preference category}
+  J -- CHEAP --> K[Sort by lowest price]
+  J -- PERFORMANCE --> L[Sort by highest CPU/GPU]
+  J -- LIGHTWEIGHT --> M[Sort by laptop weight if available]
+  J -- VALUE / BALANCED --> N[Use TOPSIS score order]
+  K --> O[JSON response]
+  L --> O
+  M --> O
+  N --> O
 ```
 
 ---
@@ -171,6 +172,15 @@ Memuat CSV dan membangun knowledge base yang dipakai NLP serta benchmark lookup.
 
 ## Cara Kerja Sistem
 
+Kalau kamu mau menganalisis sistem ini dengan benar, baca sebagai 4 lapisan keputusan:
+
+1. **Paham maksud user**: query diubah jadi intent, target app, budget, dan preferensi.
+2. **Pilih kandidat yang mungkin**: smart filter membuang laptop yang jelas tidak masuk.
+3. **Buktikan cocok secara teknis**: benchmark checking memastikan tidak ada bottleneck atau mismatch kebutuhan.
+4. **Urutkan kandidat terbaik**: AHP + TOPSIS memberi ranking akhir yang masih bisa dijelaskan.
+
+Dengan cara baca seperti ini, kamu bisa lebih mudah lihat bagian mana yang harus diubah, dikurangi, atau ditambah.
+
 ### 1. NLP parsing
 
 `src/nlp_pipeline.py` membaca query user dan mengekstrak:
@@ -215,6 +225,8 @@ Ini berlaku bukan hanya untuk query yang eksplisit bilang gaming, tetapi untuk s
 
 Setelah lolos minimum, sistem menghitung `Benchmark_Fit` dari rasio CPU, GPU, RAM, dan Storage terhadap threshold minimum. Skor ini memakai bottleneck-aware harmonic mean, jadi komponen yang lemah akan menurunkan skor akhir.
 
+Benchmark fit dipakai sebagai acuan ranking agar laptop yang terlihat bagus di skor mentah tetapi masih bottleneck di komponen penting tidak naik ke atas.
+
 ### 5. AHP weighting
 
 `get_intent_based_weights()` memberi bobot sesuai intent.
@@ -251,6 +263,126 @@ Semakin besar `C*`, semakin baik peringkat laptop.
 - `LIGHTWEIGHT` -> aktif hanya jika dataset punya kolom bobot laptop; kalau tidak ada, diabaikan
 - `VALUE` / `BALANCED` -> tetap memakai AHP + TOPSIS normal
 
+Untuk query yang punya benchmark target, urutan akhir juga mempertimbangkan benchmark fit supaya laptop yang paling sesuai kebutuhan ada di atas laptop yang hanya unggul di skor mentah.
+
+---
+
+## Cara Membaca Algoritma Saat Debugging
+
+Saat hasil rekomendasi terasa salah, cek urutannya dari atas ke bawah:
+
+### A. Intent salah?
+
+Kalau intent salah, masalahnya ada di `src/nlp_pipeline.py`.
+
+Contoh gejala:
+
+- query desain 2D masuk `FIND_LAPTOP_GENERAL`
+- query performance masuk `CHEAP`
+- query campuran kehilangan target game
+
+Yang perlu diubah:
+
+- kamus sinonim aplikasi
+- daftar kata preferensi
+- prioritas kategori intent
+- aturan fallback
+
+### B. Kandidat terlalu banyak atau terlalu sedikit?
+
+Kalau hasil terlalu longgar atau terlalu ketat, cek `src/smart_filters_and_ahp.py` dan bagian Phase 1 di `app.py`.
+
+Yang biasanya perlu disetel:
+
+- CPU minimum
+- GPU minimum
+- RAM minimum
+- storage minimum
+- brand filter
+- budget filter
+
+### C. Laptop lolos filter tapi ranking masih aneh?
+
+Kalau kandidat sudah benar tapi urutan akhir masih terasa aneh, cek:
+
+- `Benchmark_Fit`
+- bobot AHP
+- kriteria TOPSIS
+- tie-break di `app.py`
+
+Ini biasanya terjadi kalau ada komponen yang terlalu berat bobotnya, misalnya RAM besar tetapi GPU/CPU lebih lemah.
+
+### D. Benchmark data salah atau tidak cocok?
+
+Kalau threshold benchmark terasa tidak masuk akal, cek data dan loader:
+
+- `data/minimum_requirements_processed.csv`
+- `data/recommended_requirements_processed.csv`
+- `scripts/load_data.py`
+
+Bagian ini penting kalau nama CPU/GPU di CSV tidak sama persis dengan nama di dataset laptop.
+
+---
+
+## Apa Yang Harus Diubah, Dikurangi, atau Ditambah
+
+### Kalau kamu ingin menambah akurasi
+
+- tambah sinonim query di `src/nlp_pipeline.py`
+- tambah benchmark data di CSV
+- tambah intent baru di `src/smart_filters_and_ahp.py`
+- tambah rule tie-break khusus di `app.py`
+
+### Kalau kamu ingin mengurangi noise
+
+- kurangi kata yang terlalu umum di intent detection
+- kurangi bobot kriteria yang tidak relevan per use case
+- jangan pakai spesifikasi yang tidak tersedia di dataset
+
+### Kalau kamu ingin mengubah prioritas ranking
+
+- ubah bobot AHP di `src/smart_filters_and_ahp.py`
+- ubah urutan tie-break di `app.py`
+- ubah criteria set di `src/topsis_engine.py`
+
+### Kalau kamu ingin menambah data baru
+
+- tambahkan CSV benchmark CPU/GPU
+- tambahkan kolom fisik seperti bobot laptop kalau ingin memakai mode `LIGHTWEIGHT`
+- tambahkan requirement baru untuk app/game baru
+
+### Kalau kamu ingin menghapus sesuatu
+
+- hapus synonym yang terlalu ambigu
+- hapus preferensi yang tidak punya dukungan data
+- hapus kriteria ranking yang tidak memberi sinyal nyata
+
+---
+
+## Prinsip Desain Yang Dipakai
+
+Sistem ini sengaja dibuat dengan prinsip berikut:
+
+1. **Deterministik dulu**: hasil final harus bisa dijelaskan dari aturan dan data.
+2. **Benchmark before ranking**: kalau target app punya minimum requirement, itu wajib dipenuhi dulu.
+3. **No pointless spec inflation**: spek yang tidak relevan tidak boleh mengalahkan spek penting.
+4. **Context aware**: desain, gaming, AI, dan kerja ringan tidak boleh diperlakukan sama.
+5. **Data truth wins**: kalau database tidak punya informasi tertentu, sistem tidak boleh mengarang.
+
+---
+
+## Kenapa Hasil Bisa Terasa Aneh Kalau Salah Setelan
+
+Beberapa contoh yang biasanya bikin ranking terasa tidak pas:
+
+- RAM besar mengalahkan GPU yang lebih kuat
+- harga terlalu dominan pada use case performa
+- intent aplikasi salah terbaca
+- benchmark minimum tidak dipakai saat ada target aplikasi
+- data benchmark tidak cocok dengan nama CPU/GPU di dataset
+
+Kalau itu terjadi, biasanya bukan karena TOPSIS saja, tapi karena kombinasi intent parsing, filter minimum, benchmark fit, dan bobot AHP.
+
 ---
 
 ## Kenapa Gaming Sekarang Lebih Akurat
@@ -264,6 +396,8 @@ Sebelumnya RAM bisa terlalu mempengaruhi ranking gaming. Sekarang jalur gaming m
 RAM dan storage tetap dipakai sebagai syarat minimum di filtering, bukan penentu utama ranking final.
 
 Itu sebabnya laptop dengan RTX 3070 bisa naik di atas RTX 3060 kalau GPU memang lebih kuat dan CPU-nya setara.
+
+Prinsip yang sama dipakai juga untuk target non-gaming yang punya benchmark data: benchmark minimum wajib lolos, lalu ranking harus tetap menghormati komponen yang paling relevan.
 
 ---
 
@@ -349,6 +483,27 @@ Health check sederhana.
 ---
 
 ## Contoh Interpretasi Query
+
+### Analisis per Use Case
+
+Tabel ini berguna kalau kamu ingin tahu apa yang dihitung, apa yang dibuang, dan apa yang jadi prioritas akhir pada tiap scenario.
+
+| Use Case | Intent | Benchmark Wajib | Filter Utama | Ranking Utama | Tie-Break |
+|---|---|---|---|---|---|
+| Desain 2D | `2D_DESIGN` | Ya, jika ada benchmark app | CPU, RAM, storage, budget | AHP + TOPSIS untuk design | CPU > RAM > Price |
+| Desain 3D | `3D_DESIGN` | Ya | GPU, CPU, RAM, storage, budget | AHP + TOPSIS untuk rendering | GPU > RAM > CPU |
+| AI Training | `AI_DEVELOPMENT` | Ya | GPU, RAM, CPU, storage, budget | AHP + TOPSIS untuk training | GPU > RAM > CPU |
+| Gaming | `FIND_LAPTOP_FOR_GAME` | Ya, wajib | Game list, benchmark minimum, budget | Benchmark fit + GPU/CPU score | GPU > CPU > RAM > TOPSIS > Price |
+| Kerja ringan / general | `FIND_LAPTOP_GENERAL` | Opsional | Budget, brand, RAM minimum | AHP + TOPSIS umum | Price atau intent-specific weights |
+| Kerja kantoran / multitasking | `MULTITASKING` atau `WORKSTATION` | Jika ada benchmark relevan | RAM, CPU, budget | AHP + TOPSIS | RAM > CPU > Price |
+| Performance-first | `PERFORMANCE` category | Jika ada benchmark relevan | Semua kandidat yang lolos minimum | Performance sort | GPU > CPU > RAM |
+| Cheapest / value hunt | `CHEAP` category | Jika ada benchmark relevan | Budget, minimum benchmark | Price-first atau TOPSIS + price bias | Price > TOPSIS |
+
+Aturan baca tabel ini:
+
+1. Kalau use case punya benchmark data, minimum benchmark harus lolos dulu.
+2. Kalau ada bottleneck di GPU atau CPU, RAM besar tidak boleh menang sendirian.
+3. Kalau dataset tidak punya data untuk atribut tertentu, atribut itu tidak dipakai sebagai ranking utama.
 
 ### Query desain 2D
 
