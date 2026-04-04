@@ -63,6 +63,69 @@ additional_stopwords = {
 }
 stopwords_sastrawi.update(additional_stopwords)
 
+# === APPLICATION TO INTENT MAPPING ===
+# Maps design/productivity applications to their corresponding intents
+APP_TO_INTENT_MAP = {
+    # 2D Design Applications
+    '2d_design': [
+        'photoshop', 'illustrator', 'corel draw', 'coreldraw', 'corel', 'gimp', 
+        'paint', 'affinity', 'clip', 'krita', 'procreate', 'design', 'graphic', 
+        'editing', 'photo', 'image', 'design'
+    ],
+    # 3D Design & Rendering
+    '3d_design': [
+        'blender', 'maya', 'cinema 4d', 'c4d', '3ds max', '3dsmax', 'lightwave',
+        'sketchup', 'fusion 360', 'cad', 'autocad', 'solidworks', 'catia',
+        'vray', 'arnold', 'rendering', 'model', 'sculpt', '3d'
+    ],
+    # AI/Machine Learning Development
+    'ai_development': [
+        'tensorflow', 'pytorch', 'keras', 'jupyter', 'anaconda', 'python', 'ml',
+        'machine', 'learning', 'deep', 'neural', 'ai', 'model', 'training',
+        'cuda', 'gpu compute', 'data science'
+    ],
+    # Web Development
+    'web_development': [
+        'vscode', 'visual studio', 'webstorm', 'sublime', 'nodejs', 'node.js',
+        'npm', 'webpack', 'react', 'angular', 'vue', 'development', 'coding',
+        'programming', 'ide', 'editor'
+    ],
+    # Video Editing
+    'video_editor': [
+        'premiere', 'davinci', 'resolve', 'vegas', 'final cut', 'ffmpeg',
+        'video', 'edit', 'editor', 'codec', 'render', 'footage'
+    ],
+    # Multitasking/Workstation
+    'multitasking': [
+        'office', 'excel', 'word', 'chrome', 'browser', 'multitask', 'work',
+        'productivity', 'meeting', 'zoom', 'teams', 'streaming'
+    ]
+}
+
+def detect_application_intent(query: str) -> str:
+    """
+    Detect intent from application keywords in query.
+    Returns intent name (e.g., '2D_DESIGN') or None if not found.
+    """
+    query_lower = query.lower()
+    for intent, keywords in APP_TO_INTENT_MAP.items():
+        for keyword in keywords:
+            if keyword.lower() in query_lower:
+                # Convert to uppercase format matching RBR rules
+                if intent == '2d_design':
+                    return '2D_DESIGN'
+                elif intent == '3d_design':
+                    return '3D_DESIGN'
+                elif intent == 'ai_development':
+                    return 'AI_DEVELOPMENT'
+                elif intent == 'web_development':
+                    return 'WEB_DEVELOPMENT'
+                elif intent == 'video_editor':
+                    return 'VIDEO_EDITOR'
+                elif intent == 'multitasking':
+                    return 'MULTITASKING'
+    return None
+
 # === Indonesian Number Conversion ===
 SIMPLE = {
     "nol":0, "satu":1, "dua":2, "tiga":3, "empat":4, "lima":5,
@@ -874,11 +937,16 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
         unique_keyword_game_map, game_abbreviations_kb, game_alt_titles_kb, series_abbreviations,
         bigram_unique_kb, brand_models_mapping
     )
+    
+    # Detect application intent (design, AI, web dev, etc.)
+    app_intent = detect_application_intent(user_query)
+    
     return {
         "tokens": tokens,
         "found_games": found_games,
         "found_laptops": found_laptops,
         "budget": extracted_budget,
         "ram": extracted_ram,
-        "budget_span": budget_span
+        "budget_span": budget_span,
+        "app_intent": app_intent  # NEW: Application intent mapping
     }

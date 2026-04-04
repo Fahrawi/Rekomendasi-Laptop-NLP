@@ -464,8 +464,12 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         ram_min = nlp_result.get('ram', [None])[0] if nlp_result.get('ram') else None  # Get first RAM if any
         brand = nlp_result.get('found_laptops', [None])[0] if nlp_result.get('found_laptops') else None
         
-        # Determine intent based on extracted data
-        if games:
+        # Determine intent with priority: App Intent > Gaming > General
+        app_intent = nlp_result.get('app_intent')  # NEW: Check for design/productivity apps
+        if app_intent:
+            intent = app_intent  # Use detected app intent (2D_DESIGN, 3D_DESIGN, etc.)
+            print(f"   ✓ Application intent detected: {intent}")
+        elif games:
             intent = "FIND_LAPTOP_FOR_GAME"
         else:
             intent = "FIND_LAPTOP_GENERAL"
