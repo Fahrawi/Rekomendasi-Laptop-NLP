@@ -424,6 +424,33 @@ def apply_cheapest_preference_weights(base_weights: Dict[str, float]) -> Dict[st
 
     return adjusted
 
+
+def get_laptop_weight_column(df: pd.DataFrame) -> Optional[str]:
+    """Return a laptop weight column if the dataset has one, otherwise None."""
+    if df is None or df.empty:
+        return None
+
+    preferred_names = ['weight', 'bobot', 'berat', 'laptop weight', 'device weight']
+    for column in df.columns:
+        column_lower = str(column).strip().lower()
+        if any(name == column_lower or name in column_lower for name in preferred_names):
+            return column
+    return None
+
+
+def apply_lightweight_preference_sorting(df: pd.DataFrame) -> pd.DataFrame:
+    """Sort by laptop weight if the dataset has it; otherwise return unchanged."""
+    weight_column = get_laptop_weight_column(df)
+    if weight_column is None:
+        return df
+
+    sorted_df = df.sort_values(
+        by=[weight_column, 'Final Price'],
+        ascending=[True, True]
+    ).reset_index(drop=True)
+    sorted_df['Rank'] = range(1, len(sorted_df) + 1)
+    return sorted_df
+
 def get_game_specs_from_df(game_name, min_df, rec_df):
     min_row = min_df[min_df['App'].str.lower() == game_name.lower()]
     rec_row = rec_df[rec_df['App'].str.lower() == game_name.lower()]
@@ -1071,14 +1098,15 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         
         print(f"\n📊 Phase 2: TOPSIS Ranking")
         
-        # For game intents, exclude Storage from criteria since past minimum it doesn't affect gaming performance
+        # For game intents, rank by performance-first criteria only.
+        # RAM and storage are already enforced by the Phase 1 benchmark/filter step,
+        # so they should not overpower GPU differences in the final ranking.
         custom_criteria = None
         if "GAME" in intent.upper():
             print(f"   ℹ️  Game intent - using GPU-optimized criteria")
             custom_criteria = {
                 'GPU_score': {'type': 'benefit', 'description': 'GPU performance score'},
                 'CPU_score': {'type': 'benefit', 'description': 'CPU performance score'},
-                'RAM': {'type': 'benefit', 'description': 'RAM in GB'},
                 'Final Price': {'type': 'cost', 'description': 'Price in IDR'}
             }
         
@@ -1104,14 +1132,13 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             ).reset_index(drop=True)
             ranked_df['Rank'] = range(1, len(ranked_df) + 1)
             print("   ✓ Cheapest preference applied: sorted by lowest Final Price")
-        elif preference_category == 'LIGHTWEIGHT' and 'Final Price' in ranked_df.columns and 'TOPSIS_Score' in ranked_df.columns:
-            # For lightweight, prioritize lower price and smaller specs (less is more)
-            ranked_df = ranked_df.sort_values(
-                by=['Final Price', 'TOPSIS_Score'],
-                ascending=[True, False]
-            ).reset_index(drop=True)
-            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
-            print("   ✓ Lightweight preference applied: prioritizing cost-efficiency")
+        elif preference_category == 'LIGHTWEIGHT':
+            weight_column = get_laptop_weight_column(ranked_df)
+            if weight_column is None:
+                print("   ℹ️  Lightweight preference detected, but dataset has no laptop weight column. Ignoring preference.")
+            else:
+                ranked_df = apply_lightweight_preference_sorting(ranked_df)
+                print(f"   ✓ Lightweight preference applied: sorting by {weight_column}")
         
         # Get top-N recommendations with summary stats
         summary = get_topsis_summary(ranked_df, top_n=top_n)

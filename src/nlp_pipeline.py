@@ -70,8 +70,8 @@ APP_TO_INTENT_MAP = {
     # 2D Design Applications
     '2d_design': [
         'photoshop', 'illustrator', 'corel draw', 'coreldraw', 'corel', 'gimp', 
-        'paint', 'affinity', 'clip', 'krita', 'procreate', 'design', 'graphic', 
-        'editing', 'photo', 'image', 'design'
+        'paint', 'affinity', 'clip', 'krita', 'procreate', 'design', 'desain', '2d',
+        'graphic', 'grafis', 'editing', 'edit', 'photo', 'image', 'ilustrasi', 'illustration'
     ],
     # 3D Design & Rendering
     '3d_design': [
@@ -123,7 +123,6 @@ CHEAPEST_PREFERENCE_TERMS = [
     'harga paling rendah',
     'low budget',
     'budget minim',
-    'teringan',  # Lightweight price (murah + ringan)
 ]
 
 PERFORMANCE_PREFERENCE_TERMS = [
@@ -146,6 +145,7 @@ VALUE_PREFERENCE_TERMS = [
 ]
 
 LIGHTWEIGHT_PREFERENCE_TERMS = [
+    'teringan',
     'paling ringan',
     'paling enteng',
     'ringan sekali',
