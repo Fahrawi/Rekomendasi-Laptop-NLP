@@ -2,6 +2,7 @@
 import re
 import string
 from collections import defaultdict
+from typing import Optional
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from nltk.tokenize import RegexpTokenizer
 from difflib import SequenceMatcher
@@ -183,7 +184,7 @@ def apply_manual_game_aliases(user_query, found_games, game_list):
 
     return found_games
 
-def detect_application_intent(query: str) -> str:
+def detect_application_intent(query: str) -> Optional[str]:
     """
     Detect intent from application keywords in query.
     Returns intent name (e.g., '2D_DESIGN') or None if not found.
