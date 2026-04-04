@@ -17,11 +17,11 @@ Tujuan utama sistem ini adalah mengubah bahasa alami user menjadi struktur yang 
 User query
   -> NLP pipeline
   -> intent / budget / game / preference extraction
+  -> preference category / optimization goal
   -> Phase 1: smart filters
   -> benchmark filter (kalau gaming / use case tertentu)
   -> Phase 2: AHP weights
   -> TOPSIS ranking
-  -> category-specific sorting
   -> JSON response
 ```
 
@@ -35,22 +35,18 @@ Endpoint utama yang dipakai frontend adalah `POST /api/recommend-hybrid`.
 flowchart TD
   A[User Query] --> B[NLP Pipeline]
   B --> C[Extract intent, budget, games, preference]
-  C --> D[Phase 1 Smart Filters]
-  D --> E{Target apps / benchmark data detected?}
-  E -- Yes --> F[Benchmark minimum check]
-  E -- No --> G[Intent-based AHP weights]
-  F --> H[Benchmark fit score]
-  G --> H
-  H --> I[TOPSIS ranking]
-  I --> J{Preference category}
-  J -- CHEAP --> K[Sort by lowest price]
-  J -- PERFORMANCE --> L[Sort by highest CPU/GPU]
-  J -- LIGHTWEIGHT --> M[Sort by laptop weight if available]
-  J -- VALUE / BALANCED --> N[Use TOPSIS score order]
-  K --> O[JSON response]
-  L --> O
-  M --> O
-  N --> O
+  C --> D[Preference category / optimization goal]
+  D --> E[Intent-based AHP weights]
+  C --> F[Phase 1 Smart Filters]
+  F --> G{Target apps / benchmark data detected?}
+  G -- Yes --> H[Benchmark minimum check]
+  G -- No --> I[Skip benchmark minimum check]
+  H --> J[Benchmark fit score]
+  I --> J
+  E --> K[TOPSIS ranking]
+  J --> K
+  K --> L[Final tie-break / response formatting]
+  L --> M[JSON response]
 ```
 
 ---
@@ -256,14 +252,18 @@ C* = D- / (D+ + D-)
 
 Semakin besar `C*`, semakin baik peringkat laptop.
 
-### 7. Sorting tambahan per kategori
+### 7. Penyesuaian akhir berbasis goal
 
-- `CHEAP` -> urut harga paling rendah
-- `PERFORMANCE` -> urut CPU + GPU paling tinggi
-- `LIGHTWEIGHT` -> aktif hanya jika dataset punya kolom bobot laptop; kalau tidak ada, diabaikan
-- `VALUE` / `BALANCED` -> tetap memakai AHP + TOPSIS normal
+`Preference category` dipakai untuk memilih template bobot AHP sebelum TOPSIS berjalan.
 
-Untuk query yang punya benchmark target, urutan akhir juga mempertimbangkan benchmark fit supaya laptop yang paling sesuai kebutuhan ada di atas laptop yang hanya unggul di skor mentah.
+- `CHEAP` -> bobot harga dibuat dominan lebih awal
+- `PERFORMANCE` -> bobot CPU / GPU dibuat dominan lebih awal
+- `LIGHTWEIGHT` -> hanya aktif jika dataset punya kolom bobot laptop; kalau tidak ada, diabaikan
+- `VALUE` / `BALANCED` -> memakai bobot seimbang untuk TOPSIS
+
+Setelah TOPSIS, sistem hanya boleh melakukan tie-break ringan atau formatting hasil, bukan reranking manual yang menggantikan skor matematis.
+
+Untuk query yang punya benchmark target, benchmark fit tetap dipakai agar laptop yang secara teknis lebih aman tidak kalah oleh laptop yang cuma unggul di satu angka mentah.
 
 ---
 
