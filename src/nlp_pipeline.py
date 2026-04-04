@@ -121,6 +121,11 @@ CHEAPEST_PREFERENCE_TERMS = [
     'harga paling rendah',
     'low budget',
     'budget minim',
+    'teringan',
+    'terkencang',
+    'terencang',
+    'paling ringan',
+    'paling kencang harga',
 ]
 
 
