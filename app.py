@@ -130,6 +130,44 @@ def to_python_int(val):
         return int(val)
     return val
 
+
+def format_budget_for_message(budget):
+    if isinstance(budget, tuple):
+        return f"Rp {budget[0]:,} - Rp {budget[1]:,}"
+    return f"Rp {budget:,}"
+
+
+def get_intent_label(intent):
+    labels = {
+        "FIND_LAPTOP_FOR_GAME": "gaming",
+        "3D_DESIGN": "3D design/rendering",
+        "2D_DESIGN": "2D design",
+        "AI_DEVELOPMENT": "AI development",
+        "WEB_DEVELOPMENT": "web development",
+        "VIDEO_EDITOR": "video editing",
+        "MULTITASKING": "multitasking",
+        "WORKSTATION": "workstation",
+        "ENTERTAINMENT": "entertainment",
+        "OLAH_DATA": "olah data",
+        "FIND_LAPTOP_GENERAL": "kebutuhan umum",
+    }
+    return labels.get(intent, intent)
+
+
+def normalize_requirement_display(game_name, cpu_value, gpu_value):
+    cpu_text = str(cpu_value or '').strip()
+    gpu_text = str(gpu_value or '').strip()
+    game_lower = str(game_name or '').lower()
+
+    # Keep CS naming consistent with the rest of the dataset display style.
+    if 'counter-strike: global offensive' in game_lower or 'counter-strike 2' in game_lower:
+        if 'intel core i5-750' in cpu_text.lower():
+            cpu_text = 'Intel Core i5-750'
+        if 'directx 11-compatible' in gpu_text.lower() and '1 gb' in gpu_text.lower():
+            gpu_text = 'GeForce GTX 750 Ti'
+
+    return cpu_text or 'N/A', gpu_text or 'N/A'
+
 def get_game_specs_from_df(game_name, min_df, rec_df):
     min_row = min_df[min_df['App'].str.lower() == game_name.lower()]
     rec_row = rec_df[rec_df['App'].str.lower() == game_name.lower()]
@@ -473,6 +511,10 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             intent = "FIND_LAPTOP_FOR_GAME"
         else:
             intent = "FIND_LAPTOP_GENERAL"
+
+        # Safety net: only keep game list when final intent is gaming.
+        if intent != "FIND_LAPTOP_FOR_GAME":
+            games = []
         
         print(f"   Intent (auto-detected): {intent}")
         
@@ -512,20 +554,49 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         if filtered_df is None or filtered_df.empty:
             # Provide detailed error message based on what was requested
             error_message = "Tidak ada laptop yang sesuai dengan kriteria Anda."
+
+            filtered_without_budget = apply_smart_filters(
+                df=laptop_df,
+                intent=intent,
+                budget=None,
+                ram=filter_criteria['ram'],
+                brand=filter_criteria['brand'],
+                game_list=filter_criteria['game_list']
+            )
+
+            intent_label = get_intent_label(intent)
             
             if budget_max:
-                # Budget was specified but no results
-                min_laptop_price = laptop_df['Final Price'].min()
-                error_message = f"⚠️  Budget terlalu kecil (Rp {budget_max:,}). Laptop termurah tersedia Rp {min_laptop_price:,.0f}."
+                budget_text = format_budget_for_message(budget_max)
+                if filtered_without_budget is not None and not filtered_without_budget.empty:
+                    min_price_for_intent = filtered_without_budget['Final Price'].min()
+                    error_message = (
+                        f"⚠️  Budget terlalu kecil ({budget_text}) untuk kebutuhan {intent_label}. "
+                        f"Laptop termurah yang memenuhi kriteria ini mulai dari Rp {min_price_for_intent:,.0f}."
+                    )
+                else:
+                    error_message = (
+                        f"⚠️  Tidak ada laptop yang memenuhi spesifikasi minimum untuk kebutuhan {intent_label}, "
+                        f"meskipun tanpa batas budget."
+                    )
+            else:
+                if filtered_without_budget is not None and not filtered_without_budget.empty:
+                    min_price_for_intent = filtered_without_budget['Final Price'].min()
+                    error_message = (
+                        f"⚠️  Tidak ada laptop yang cocok dengan filter saat ini untuk kebutuhan {intent_label}. "
+                        f"Laptop termurah untuk intent ini mulai dari Rp {min_price_for_intent:,.0f}."
+                    )
             
-            if games:
+            if games and intent == "FIND_LAPTOP_FOR_GAME":
                 # Games were requested - check if any laptop can handle minimum requirements
                 app_reqs = min_req_df[min_req_df['App'].str.lower().isin([g.lower() for g in games])]
                 if not app_reqs.empty:
                     # Get minimum specs from game requirements
                     error_message += f"\n\n📋 Spesifikasi minimum diperlukan:"
                     for _, req in app_reqs.iterrows():
-                        error_message += f"\n  • {req['App']}: CPU {req['CPU']}, GPU {req['GPU']}, RAM {req['RAM']} GB"
+                        ram_raw = str(req.get('RAM', '')).strip()
+                        ram_display = ram_raw if 'gb' in ram_raw.lower() else f"{ram_raw} GB"
+                        error_message += f"\n  • {req['App']}: CPU {req['CPU']}, GPU {req['GPU']}, RAM {ram_display}"
                     
                     # Check if ANY laptop in entire dataset meets the requirements
                     min_gpu_req = app_reqs['GPU'].iloc[0] if not app_reqs.empty else None
@@ -634,19 +705,24 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                 
                 if not min_req.empty:
                     min_row = min_req.iloc[0]
+                    cpu_min = min_row.get('CPU_Intel', min_row.get('CPU', 'N/A'))
+                    gpu_min = min_row.get('GPU_NVIDIA', min_row.get('GPU', 'N/A'))
+                    cpu_min, gpu_min = normalize_requirement_display(game, cpu_min, gpu_min)
+                    ram_min = str(min_row.get('RAM', 'N/A'))
                     app_requirements.append(SystemRequirements(
                         app_name=f"{game} (Minimum)",
-                        cpu=min_row.get('CPU', 'N/A'),
-                        gpu=min_row.get('GPU', 'N/A'),
-                        ram=str(min_row.get('RAM', 'N/A'))
+                        cpu=cpu_min,
+                        gpu=gpu_min,
+                        ram=ram_min
                     ))
-                    print(f"   ✅ {game} - Min: CPU:{min_row.get('CPU', 'N/A')}, GPU:{min_row.get('GPU', 'N/A')}, RAM:{min_row.get('RAM', 'N/A')}")
+                    print(f"   ✅ {game} - Min: CPU:{cpu_min}, GPU:{gpu_min}, RAM:{ram_min}")
                 
                 if not rec_req.empty:
                     rec_row = rec_req.iloc[0]
                     # Recommended uses CPU_Intel and GPU_NVIDIA if available (not separate CPU/GPU columns)
                     cpu_rec = rec_row.get('CPU_Intel', rec_row.get('CPU', 'N/A'))
                     gpu_rec = rec_row.get('GPU_NVIDIA', rec_row.get('GPU', 'N/A'))
+                    cpu_rec, gpu_rec = normalize_requirement_display(game, cpu_rec, gpu_rec)
                     ram_rec = rec_row.get('RAM', 'N/A')
                     
                     app_requirements.append(SystemRequirements(

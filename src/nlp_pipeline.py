@@ -102,28 +102,111 @@ APP_TO_INTENT_MAP = {
     ]
 }
 
+EXPLICIT_GAME_CONTEXT_TERMS = [
+    'main',
+    'bermain',
+    'memainkan',
+    'game',
+    'games',
+    'mabar',
+    'gaming',
+    'ngegame',
+]
+
+
+def has_explicit_game_context(query: str) -> bool:
+    query_lower = query.lower()
+    for term in EXPLICIT_GAME_CONTEXT_TERMS:
+        if re.search(r'\b' + re.escape(term) + r'\b', query_lower):
+            return True
+    return False
+
+
+def apply_manual_game_aliases(user_query, found_games, game_list):
+    normalized_query = normalize_lookup_key(user_query)
+    found_lower = {g.lower() for g in found_games}
+
+    has_cs2_alias = (
+        re.search(r'\bcs\s*2\b', user_query.lower()) is not None
+        or 'counterstrike2' in normalized_query
+    )
+
+    # Map CS:GO aliases with preference to legacy CS:GO entry if present.
+    has_csgo_alias = (
+        'csgo' in normalized_query
+        or re.search(r'\bcs\s*:?-?\s*go\b', user_query.lower()) is not None
+        or 'globaloffensive' in normalized_query
+    )
+
+    if has_cs2_alias:
+        cs2_candidate = None
+        for game in game_list:
+            gl = game.lower()
+            if 'counter-strike 2' in gl:
+                cs2_candidate = game
+                break
+        if cs2_candidate and cs2_candidate.lower() not in found_lower:
+            found_games.append(cs2_candidate)
+            found_lower.add(cs2_candidate.lower())
+
+    if has_csgo_alias:
+        csgo_candidate = None
+        cs2_fallback = None
+        for game in game_list:
+            gl = game.lower()
+            if 'global offensive' in gl:
+                csgo_candidate = game
+                break
+            if 'counter-strike 2' in gl:
+                cs2_fallback = game
+
+        selected = csgo_candidate or cs2_fallback
+        if selected and selected.lower() not in found_lower:
+            found_games.append(selected)
+
+    return found_games
+
 def detect_application_intent(query: str) -> str:
     """
     Detect intent from application keywords in query.
     Returns intent name (e.g., '2D_DESIGN') or None if not found.
     """
     query_lower = query.lower()
+    intent_code_map = {
+        '2d_design': '2D_DESIGN',
+        '3d_design': '3D_DESIGN',
+        'ai_development': 'AI_DEVELOPMENT',
+        'web_development': 'WEB_DEVELOPMENT',
+        'video_editor': 'VIDEO_EDITOR',
+        'multitasking': 'MULTITASKING',
+    }
+    intent_priority = [
+        'ai_development',
+        '3d_design',
+        'video_editor',
+        '2d_design',
+        'web_development',
+        'multitasking',
+    ]
+
+    intent_scores = defaultdict(int)
     for intent, keywords in APP_TO_INTENT_MAP.items():
         for keyword in keywords:
-            if keyword.lower() in query_lower:
-                # Convert to uppercase format matching RBR rules
-                if intent == '2d_design':
-                    return '2D_DESIGN'
-                elif intent == '3d_design':
-                    return '3D_DESIGN'
-                elif intent == 'ai_development':
-                    return 'AI_DEVELOPMENT'
-                elif intent == 'web_development':
-                    return 'WEB_DEVELOPMENT'
-                elif intent == 'video_editor':
-                    return 'VIDEO_EDITOR'
-                elif intent == 'multitasking':
-                    return 'MULTITASKING'
+            pattern = r'\b' + re.escape(keyword.lower()) + r'\b'
+            if re.search(pattern, query_lower):
+                intent_scores[intent] += 2 if ' ' in keyword else 1
+
+    if not intent_scores:
+        return None
+
+    best_score = max(intent_scores.values())
+    tied_intents = [intent for intent, score in intent_scores.items() if score == best_score]
+
+    for intent in intent_priority:
+        if intent in tied_intents:
+            return intent_code_map[intent]
+
+    return intent_code_map[tied_intents[0]]
     return None
 
 # === Indonesian Number Conversion ===
@@ -295,6 +378,10 @@ def find_best_match(token, candidates, threshold=0.85):
             best_score = score
             best_match = candidate
     return best_match
+
+
+def normalize_lookup_key(text):
+    return re.sub(r'[^a-zA-Z0-9]', '', text.lower())
 
 def extract_text_budget(query):
     query_lower = query.lower()
@@ -765,6 +852,13 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
     exact_kb.update(normalized_game_lookup)
     exact_kb_lower = {k.lower(): v for k, v in exact_kb.items()}
 
+    # Add normalized keys so aliases like "cs:go" can match "csgo" from user query.
+    normalized_exact_kb = {}
+    for key, value in exact_kb_lower.items():
+        norm_key = normalize_lookup_key(key)
+        if len(norm_key) >= 3 and norm_key not in normalized_exact_kb:
+            normalized_exact_kb[norm_key] = value
+
     game_segments = []
     current_segment = []
     separators = {',', 'dan', 'atau', 'sama'}
@@ -788,8 +882,8 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
         normalized_segment = re.sub(r'[^a-zA-Z0-9]', '', segment_text).lower()
         segment_confirmed_games = set()
         matched_spans = []
-        if normalized_segment in exact_kb_lower:
-            game_name = exact_kb_lower[normalized_segment]
+        if normalized_segment in normalized_exact_kb:
+            game_name = normalized_exact_kb[normalized_segment]
             segment_confirmed_games.add(game_name)
             matched_spans.append((0, len(segment_text)))
         sorted_keys = sorted(exact_kb_lower.keys(), key=len, reverse=True)
@@ -855,12 +949,13 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
     while i < len(filtered_remaining_tokens):
         token = filtered_remaining_tokens[i]
         token_lower = token.lower()
-        if token_lower in stopwords_sastrawi or len(token) < 2:
+        if token_lower in stopwords_sastrawi or len(token) < 3:
             i += 1
             continue
         matching_games = []
         for game in game_list:
-            if token_lower in game.lower():
+            # Avoid generic substring matches from short tokens like "go" or "ai".
+            if len(token_lower) >= 4 and token_lower in game.lower():
                 matching_games.append(game)
         if len(matching_games) == 1:
             confirmed_games.add(matching_games[0])
@@ -905,8 +1000,16 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
     n = len(remaining_tokens_after_phase3)
     i = 0
     while i < n - 1:
-        bigram = remaining_tokens_after_phase3[i] + " " + remaining_tokens_after_phase3[i+1]
-        best_match = find_best_match(bigram, all_game_candidates, threshold=0.85)
+        token_a = remaining_tokens_after_phase3[i]
+        token_b = remaining_tokens_after_phase3[i+1]
+        if len(token_a) < 3 or len(token_b) < 3:
+            i += 1
+            continue
+        bigram = token_a + " " + token_b
+        if len(bigram.replace(" ", "")) < 6:
+            i += 1
+            continue
+        best_match = find_best_match(bigram, all_game_candidates, threshold=0.88)
         if best_match:
             confirmed_games.add(best_match)
             matched_in_phase4.update([i, i+1])
@@ -916,7 +1019,9 @@ def extract_entities_and_budget(user_query, game_list, laptop_list, laptop_brand
     for i in range(n):
         if i not in matched_in_phase4:
             token = remaining_tokens_after_phase3[i]
-            best_match = find_best_match(token, all_game_candidates, threshold=0.85)
+            if len(token) < 4:
+                continue
+            best_match = find_best_match(token, all_game_candidates, threshold=0.90)
             if best_match:
                 confirmed_games.add(best_match)
                 matched_in_phase4.add(i)
@@ -940,6 +1045,13 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
     
     # Detect application intent (design, AI, web dev, etc.)
     app_intent = detect_application_intent(user_query)
+
+    found_games = apply_manual_game_aliases(user_query, found_games, game_list)
+
+    # If the query is clearly about productivity/design intent and does not
+    # explicitly mention gaming context, drop accidental game matches.
+    if app_intent and found_games and not has_explicit_game_context(user_query):
+        found_games = []
     
     return {
         "tokens": tokens,

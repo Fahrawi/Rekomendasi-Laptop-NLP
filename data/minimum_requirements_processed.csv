@@ -19,7 +19,7 @@ Destiny 2,Intel Core i3-3250 @ 3.50GHz / AMD FX-4350,GeForce GTX 660 / Radeon HD
 Dead by Daylight,Intel Core i3-4170 / AMD FX-8120,GeForce GTX 460,8 GB,50 GB,Intel Core i3-4170,AMD FX-8120,GeForce GTX 460,Radeon HD 5970,Intel G35 Express,3591,4634,2273,2275,2097
 Baldur's Gate 3,Intel Core i5-4690 / AMD FX-8350,GeForce GTX 970 / Radeon RX 480,8 GB,150 GB,Intel Core i5-4690,AMD FX-8350,GeForce GTX 970,Radeon RX 480,Intel Arc Pro A60,5705,6084,9642,8569,9194
 Palword,Intel Core i5-3570K,GeForce GTX 1050,16 GB,40 GB,Intel Core i5-3570K,AMD Athlon Gold 7220U,GeForce GTX 1050,Radeon Pro Vega 20,Intel Arc A370M,4964,4888,5030,5039,5115
-Genshin Impact,Intel Core i5-8400 ,GeForce GT 1030,8 GB,120 GB,Intel Core i5-8400,AMD Ryzen 5 3400G,GeForce GT 1030,Radeon Ryzen 7 7730U,Intel Iris Xe,9225,9220,2429,2425,2657
+Genshin Impact,Intel Core i5-8400,GeForce GT 1030,8 GB,120 GB,Intel Core i5-8400,AMD Ryzen 5 3400G,GeForce GT 1030,Radeon Ryzen 7 7730U,Intel Iris Xe,9225,9220,2429,2425,2657
 Honkai: Star rail,Intel Core i3-10100,GeForce GTX 650,6 GB,60 GB,Intel Core i3-10100,AMD Ryzen 5 2400G,GeForce GTX 650,Ryzen 3 PRO 4200GE with Radeon Graphics,Intel Iris Plus 645,8712,8738,1749,1748,1749
 Honkai Impact 3rd,Intel Core i3-6100 / AMD FX-6300,GeForce GTX 660,8 GB,15 GB,Intel Core i3-6100,AMD FX-6300,GeForce GTX 660,Radeon HD 7800-serie,Intel Arc 130V GPU,4129,4223,4023,4029,4621
 Zenless Zone Zero,Intel Core i5-7500,GeForce GTX 970,8 GB,50 GB,Intel Core i5-7500,AMD Ryzen Embedded V1404I,GeForce GTX 970,Radeon RX 6500 XT,Intel Arc A730M,6027,6007,9642,9601,9808
@@ -28,22 +28,22 @@ Call of Duty,Intel Core i5-6600 / AMD Ryzen 5 1400,GeForce GTX 960 / Radeon RX 4
 Umamusume: Pretty Derby,Intel Core i3-4360 / AMD A8-7650K,GeForce GTX 750 Ti,8 GB,11 GB,Intel Core i3-4360,AMD A8-7650K,GeForce GTX 750 Ti,Radeon Ryzen 7 Pro 7735U,Intel Arc 130V GPU,3663,3116,3898,3899,4621
 PEAK,Intel Core i5-7200U @ 2.50GHz,GeForce GTX 1060,8 GB,6 GB,Intel Core i5-7200U @ 2.50GHz,AMD Phenom II X6 1405T,GeForce GTX 1060,Radeon RX 6550M,Intel Arc A730M,3371,3371,10081,9772,9808
 Shadowverse: Worlds Beyond,Intel Core i5-8500 / AMD Ryzen 5 3500,GeForce GTX 970 / Radeon RX 6500 XT,8 GB,20 GB,Intel Core i5-8500,AMD Ryzen 5 3500,GeForce GTX 970,Radeon RX 6500 XT,Intel Arc A730M,9534,12794,9642,9601,9808
-Red Dead Redemption 2,Intel Core i5-2500K / AMD FX-6300 ,GeForce GTX 770 / Radeon R9 280,8 GB,150 GB,Intel Core i5-2500K,AMD FX-6300,GeForce GTX 770,Radeon R9 280,Intel Arc Pro,4127,4223,5941,5542,5741
+Red Dead Redemption 2,Intel Core i5-2500K / AMD FX-6300,GeForce GTX 770 / Radeon R9 280,8 GB,150 GB,Intel Core i5-2500K,AMD FX-6300,GeForce GTX 770,Radeon R9 280,Intel Arc Pro,4127,4223,5941,5542,5741
 Blue Archive,Intel Core i3-540 @ 3.07GHz,GeForce GTX 650 Ti,4 GB,19 GB,Intel Core i3-540 @ 3.07GHz,AMD R-460L APU,GeForce GTX 650 Ti,Radeon HD 6850 X2,Intel Iris Xe,1540,1538,2528,2534,2657
 ELDER RING,Intel Core i5-8400 / AMD Ryzen 3 3300X,GeForce GTX 1060 / Radeon RX 580,12 GB,60 GB,Intel Core i5-8400,AMD Ryzen 3 3300X,GeForce GTX 1060,Radeon RX 580,Intel Arc Pro A60,9225,12595,10081,8822,9194
 NBA 2K25,Intel Core i3-9100 / AMD Ryzen 3 1200,GeForce GTX 960 / Intel Arc A580,8 GB,150 GB,Intel Core i3-9100,AMD Ryzen 3 1200,GeForce GTX 960,Radeon Pro W5500,Intel Arc A580,6767,6261,6115,8962,11930
 ELDEN RING NIGHTREIGN,Intel Core i5-10600 / AMD Ryzen 5 5500,GeForce GTX 1060 / Radeon RX 580,12 GB,30 GB,Intel Core i5-10600,AMD Ryzen 5 5500,GeForce GTX 1060,Radeon RX 580,Intel Arc Pro A60,14282,19345,10081,8822,9194
 Sid Meier's Civilization VII,Intel Core i5-4690 / AMD Ryzen 3 1200,GeForce GTX 1050 / Radeon RX 460 / Intel Arc A380,8 GB,20 GB,Intel Core i5-4690,AMD Ryzen 3 1200,GeForce GTX 1050,Radeon RX 460,Intel Arc A380,5705,6261,5030,4092,6253
-HELLDIVERS 2,Intel Core i7-4790K / AMD Ryzen 5 1500X,GeForce GTX 1050 Ti ,8 GB,100 GB,Intel Core i7-4790K,AMD Ryzen 5 1500X,GeForce GTX 1050 Ti,Radeon Pro 570,Intel Arc 130T GPU,8062,9089,6339,6336,6381
+HELLDIVERS 2,Intel Core i7-4790K / AMD Ryzen 5 1500X,GeForce GTX 1050 Ti,8 GB,100 GB,Intel Core i7-4790K,AMD Ryzen 5 1500X,GeForce GTX 1050 Ti,Radeon Pro 570,Intel Arc 130T GPU,8062,9089,6339,6336,6381
 DayZ,Intel Core i5-4430,GeForce GTX 760 / Radeon R9 270X,8 GB,25 GB,Intel Core i5-4430,AMD Opteron 4284,GeForce GTX 760,Radeon R9 270X,Intel Arc A310 LP,4658,4665,4806,4871,4795
 Path of Exile,Intel Core i3-540 @ 3.07GHz,GeForce GTX 650 Ti,8 GB,40 GB,Intel Core i3-540 @ 3.07GHz,AMD R-460L APU,GeForce GTX 650 Ti,Radeon HD 6850 X2,Intel Iris Xe,1540,1538,2528,2534,2657
 Dune: Awakening,Intel Core i5-7400 / AMD Ryzen 3 1200,GeForce GTX 1060,16 GB,60 GB,Intel Core i5-7400,AMD Ryzen 3 1200,GeForce GTX 1060,Radeon RX 6550M,Intel Arc A730M,5475,6261,10081,9772,9808
 Euro Truck Simulator 2,Intel Core i5-6400 / AMD Ryzen 3 1200,GeForce GTX 660 / Radeon RX 460 / Intel HD 630,8 GB,25 GB,Intel Core i5-6400,AMD Ryzen 3 1200,GeForce GTX 660,Radeon RX 460,Intel HD 630,5172,6261,4023,4092,1114
-Black Myth: Wukong,Intel Core i5-8400 / AMD Ryzen 5 1600,GeForce GTX 1060 / Radeon RX 580 ,16 GB,130 GB,Intel Core i5-8400,AMD Ryzen 5 1600,GeForce GTX 1060,Radeon RX 580,Intel Arc Pro A60,9225,12275,10081,8822,9194
+Black Myth: Wukong,Intel Core i5-8400 / AMD Ryzen 5 1600,GeForce GTX 1060 / Radeon RX 580,16 GB,130 GB,Intel Core i5-8400,AMD Ryzen 5 1600,GeForce GTX 1060,Radeon RX 580,Intel Arc Pro A60,9225,12275,10081,8822,9194
 ARK: Survival Evolved,Intel Core i5-2400 / AMD FX-8320,GeForce GTX 670 / Radeon HD 7870,8 GB,60 GB,Intel Core i5-2400,AMD FX-8320,GeForce GTX 670,Radeon HD 7870,Intel Arc A370M,3870,5454,5343,4602,5115
 ARK: Survival Ascended,Intel Core i7-6800K / AMD Ryzen 5 2600X,GeForce GTX 1080 / Radeon RX 5600 XT,16 GB,70 GB,Intel Core i7-6800K,AMD Ryzen 5 2600X,GeForce GTX 1080,Radeon RX 5600 XT,Intel Arc B570,10730,13892,15583,13483,13823
 Black Dessert,Intel Core i3-4350,GeForce GTX 970 / Radeon RX 480,8 GB,80 GB,Intel Core i3-4350,AMD Athlon X4 950,GeForce GTX 970,Radeon RX 480,Intel Arc Pro A60,3609,3602,9642,8569,9194
-Satisfactory,Intel Core i5-3570,GeForce GTX 1650 ,8 GB,20 GB,Intel Core i5-3570,AMD Athlon Gold 7220U,GeForce GTX 1650,Radeon Pro 5500 XT,Intel Arc A530M,4964,4888,7878,7940,7624
+Satisfactory,Intel Core i5-3570,GeForce GTX 1650,8 GB,20 GB,Intel Core i5-3570,AMD Athlon Gold 7220U,GeForce GTX 1650,Radeon Pro 5500 XT,Intel Arc A530M,4964,4888,7878,7940,7624
 Mount & Blade II: Bannerlord,Intel Core i3-8100 / AMD Ryzen 3 1200,GeForce GTX 660 / Radeon HD 7850 / Intel UHD Graphics 630,6 GB,60 GB,Intel Core i3-8100,AMD Ryzen 3 1200,GeForce GTX 660,Radeon HD 7850,Intel UHD Graphics 630,6088,6261,4023,3886,1236
 Mecha Break,Intel Core i5-6500 / AMD Ryzen 3 1300X,GeForce GTX 1650,8 GB,60 GB,Intel Core i5-6500,AMD Ryzen 3 1300X,GeForce GTX 1650,Radeon Pro 5500 XT,Intel Arc A530M,5615,6941,7878,7940,7624
 R.E.P.O,Intel Core i5-6600,GeForce GTX 970,8 GB,1 GB,Intel Core i5-6600,AMD FX-9370 Eight-Core,GeForce GTX 970,Radeon RX 6500 XT,Intel Arc A730M,6304,6336,9642,9601,9808
@@ -64,13 +64,13 @@ Cities: Skylines II,Intel Core i7-6700K / AMD Ryzen 5 2600X,GeForce GTX 970 / Ra
 Cities: Skylines,Intel Core i7-930 / AMD FX-6350,GeForce GTS 450 / Radeon R7 250,8 GB,4 GB,Intel Core i7-930,AMD FX-6350,GeForce GTS 450,Radeon R7 250,Intel Iris Pro 5200,2978,4623,1318,1049,1180
 Punishing Gray Raven,Intel Core i5-8400 / AMD Ryzen 5 1600,GeForce GT 1030,8 GB,20 GB,Intel Core i5-8400,AMD Ryzen 5 1600,GeForce GT 1030,Radeon Ryzen 7 7730U,Intel Iris Xe,9225,12275,2429,2425,2657
 Minecraft,Intel Core i3-3210 / AMD A8-7600 APU,GeForce GT 710,2 GB,4 GB,Intel Core i3-3210,AMD A8-7600 APU,GeForce GT 710,Radeon HD 7520G + HD 8600/8700M Dual,Intel HD 510,2219,3214,622,623,622
-Fortnite,Intel Core i3-3225 ,Radeon Vega 8 / Intel HD 4000,8 GB,26 GB,Intel Core i3-3225,AMD Athlon II X4 640,Quadro 2000,Radeon Vega 8,Intel HD 4000,2263,2264,947,1577,345
-EA SPORTS FC 26,Intel Core i5-6600K / AMD Ryzen 5 1600,GeForce GTX 1050 Ti ,8 GB,100 GB,Intel Core i5-6600K,AMD Ryzen 5 1600,GeForce GTX 1050 Ti,Radeon Pro 570,Intel Arc 130T GPU,6304,12275,6339,6336,6381
+Fortnite,Intel Core i3-3225,Radeon Vega 8 / Intel HD 4000,8 GB,26 GB,Intel Core i3-3225,AMD Athlon II X4 640,Quadro 2000,Radeon Vega 8,Intel HD 4000,2263,2264,947,1577,345
+EA SPORTS FC 26,Intel Core i5-6600K / AMD Ryzen 5 1600,GeForce GTX 1050 Ti,8 GB,100 GB,Intel Core i5-6600K,AMD Ryzen 5 1600,GeForce GTX 1050 Ti,Radeon Pro 570,Intel Arc 130T GPU,6304,12275,6339,6336,6381
 Mass Effect Trilogy,Intel Core i5-3570 / AMD FX-8350,GeForce GTX 760,2 GB,120 GB,Intel Core i5-3570,AMD FX-8350,GeForce GTX 760,Radeon Pro Vega 16,Intel Arc A310 LP,4964,6084,4806,4809,4795
 League of Legends,Intel Core i3-530 / AMD A6-3650 APU,Radeon HD 6570,2 GB,16 GB,Intel Core i3-530,AMD A6-3650 APU,Quadro 1000M,Radeon HD 6570,Intel Skylake HD DT GT2,1507,2090,559,558,576
 Fallout 4,Intel Core i5-2300 / AMD Phenom II X4 945,GeForce GTX 550 Ti / Radeon HD 7870,8 GB,30 GB,Intel Core i5-2300,AMD Phenom II X4 945,GeForce GTX 550 Ti,Radeon HD 7870,Intel Graphics,3464,2413,1560,4602,3159
 Crusader Kings III: Roads to Power,Intel Core i3-2120 / AMD FX-6350,GeForce GTX 660 / Radeon HD 7870,6 GB,8 GB,Intel Core i3-2120,AMD FX-6350,GeForce GTX 660,Radeon HD 7870,Intel Arc 130V GPU,1968,4623,4023,4602,4621
-Far Cry 5 ,Intel Core i5-2400 / AMD FX-6300,GeForce GTX 670 / Radeon R9 270,8 GB,40 GB,Intel Core i5-2400,AMD FX-6300,GeForce GTX 670,Radeon R9 270,Intel Arc A310 LP,3870,4223,5343,4306,4795
+Far Cry 5,Intel Core i5-2400 / AMD FX-6300,GeForce GTX 670 / Radeon R9 270,8 GB,40 GB,Intel Core i5-2400,AMD FX-6300,GeForce GTX 670,Radeon R9 270,Intel Arc A310 LP,3870,4223,5343,4306,4795
 Far Cry 4,Intel Core i5-750 @ 2.67GHz / AMD Phenom II X4 955,GeForce GTX 460 / Radeon HD 5850,4 GB,30 GB,Intel Core i5-750 @ 2.67GHz,AMD Phenom II X4 955,GeForce GTX 460,Radeon HD 5850,Intel G35 Express,2535,2536,2273,1968,2097
 Far Cry 6,Intel Core i5-4460 / AMD Ryzen 3 1200,GeForce GTX 960,8 GB,170 GB,Intel Core i5-4460,AMD Ryzen 3 1200,GeForce GTX 960,Ryzen 9 6900HS with Radeon Graphics,Intel Arc A380,4908,6261,6115,6109,6253
 Far Cry Primal,Intel Core i3-550 / AMD Phenom II X4 955,GeForce GTX 460 / Radeon HD 5770,4 GB,20 GB,Intel Core i3-550,AMD Phenom II X4 955,GeForce GTX 460,Radeon HD 5770,Intel Iris Plus,1625,2536,2273,1345,1807
@@ -79,7 +79,7 @@ Yu-Gi-Oh! Duel Links,Intel Core i3-3210,Intel HD 4000,4 GB,16 GB,Intel Core i3-3
 SCARLET NEXUS,Intel Core i5-3470 / AMD FX-8350,GeForce GTX 760 / Radeon HD 7970,6 GB,50 GB,Intel Core i5-3470,AMD FX-8350,GeForce GTX 760,Radeon HD 7970,Intel Arc A370M,4671,6084,4806,5247,5115
 Tales of Arise,Intel Core i5-2300 / AMD Ryzen 3 1200,GeForce GTX 760,8 GB,45 GB,Intel Core i5-2300,AMD Ryzen 3 1200,GeForce GTX 760,Radeon Pro Vega 16,Intel Arc A310 LP,3464,6261,4806,4809,4795
 Code Vein,Intel Core i5-2300,GeForce GTX 760,6 GB,35 GB,Intel Core i5-2300,AMD A12-9800E,GeForce GTX 760,Radeon Pro Vega 16,Intel Arc A310 LP,3464,3471,4806,4809,4795
-AI: The Somnium Files,Intel Core i7-3770 ,GeForce GTX 460,4 GB,20 GB,Intel Core i7-3770,AMD Ryzen 3 PRO 3200G,GeForce GTX 460,Radeon HD 5970,Intel G35 Express,6477,6457,2273,2275,2097
+AI: The Somnium Files,Intel Core i7-3770,GeForce GTX 460,4 GB,20 GB,Intel Core i7-3770,AMD Ryzen 3 PRO 3200G,GeForce GTX 460,Radeon HD 5970,Intel G35 Express,6477,6457,2273,2275,2097
 Neverness To Everness,Intel Core i7-10700 / AMD Ryzen 7 3700X,GeForce GTX 1660 / Radeon RX 5600 XT,16 GB,60 GB,Intel Core i7-10700,AMD Ryzen 7 3700X,GeForce GTX 1660,Radeon RX 5600 XT,Intel Arc A750,18640,22476,11659,13483,12444
 Persona 5 Royal,Intel Core i7-4790 / AMD Ryzen 5 1500X,GeForce GTX 650 Ti / Radeon R7 360,8 GB,41 GB,Intel Core i7-4790,AMD Ryzen 5 1500X,GeForce GTX 650 Ti,Radeon R7 360,Intel Iris Xe,8062,9089,2528,3136,2657
 Persona 3 Reload,Intel Core i5-2300 / AMD FX-4350,GeForce GTX 650 Ti / Radeon R7 360,8 GB,30 GB,Intel Core i5-2300,AMD FX-4350,GeForce GTX 650 Ti,Radeon R7 360,Intel Iris Xe,3464,3176,2528,3136,2657
@@ -95,7 +95,7 @@ Assassin's Creed Origins,Intel Core i5-2400S / AMD FX-6350,GeForce GTX 660 / Rad
 Sekiro: Shadows Die Twice,Intel Core i3-2100 / AMD FX-6300,GeForce GTX 760 / Radeon HD 7950,4 GB,25 GB,Intel Core i3-2100,AMD FX-6300,GeForce GTX 760,Radeon HD 7950,Intel Arc A310 LP,1854,4223,4806,4764,4795
 Diablo IV,Intel Core i5-2500K / AMD FX-8350,GeForce GTX 660 / Radeon R9 280 / Intel Arc A380,8 GB,90 GB,Intel Core i5-2500K,AMD FX-8350,GeForce GTX 660,Radeon R9 280,Intel Arc A380,4127,6084,4023,5542,6253
 Eternal Return,Intel Core i3-3225 / AMD FX-4350,GeForce GTX 660 / Radeon HD 7850,8 GB,20 GB,Intel Core i3-3225,AMD FX-4350,GeForce GTX 660,Radeon HD 7850,Intel Arc 130V GPU,2263,3176,4023,3886,4621
-Once Human,Intel Core i5-4460 ,GeForce GTX 750 Ti / Radeon RX 550,8 GB,73 GB,Intel Core i5-4460,AMD Athlon Gold 7220U,GeForce GTX 750 Ti,Radeon RX 550,Intel Graphics,4908,4888,3898,2688,3159
+Once Human,Intel Core i5-4460,GeForce GTX 750 Ti / Radeon RX 550,8 GB,73 GB,Intel Core i5-4460,AMD Athlon Gold 7220U,GeForce GTX 750 Ti,Radeon RX 550,Intel Graphics,4908,4888,3898,2688,3159
 Grounded,Intel Core i3-3225,GeForce GTX 650 Ti,4 GB,8 GB,Intel Core i3-3225,AMD Athlon II X4 640,GeForce GTX 650 Ti,Radeon HD 6850 X2,Intel Iris Xe,2263,2264,2528,2534,2657
 The Elder Scrolls Online,Intel Core i5-2300 / AMD FX-4350,Radeon HD 6870,4 GB,150 GB,Intel Core i5-2300,AMD FX-4350,Quadro K620,Radeon HD 6870,Intel G35 Express,3464,3176,2219,2208,2097
 FINAL FANTASY XVI,Intel Core i5-8400 / AMD Ryzen 5 1600,GeForce GTX 1070 / Radeon RX 5700,16 GB,170 GB,Intel Core i5-8400,AMD Ryzen 5 1600,GeForce GTX 1070,Radeon RX 5700,Intel Arc B570,9225,12275,13498,14336,13823
@@ -105,8 +105,8 @@ FINAL FANTASY VII REMAKE INTERGRADE,Intel Core i5-3330 / AMD FX-8350,GeForce GTX
 Reverse: 1999,Intel Core i5-2300,GeForce GTX 1050,8 GB,20 GB,Intel Core i5-2300,AMD A12-9800E,GeForce GTX 1050,Radeon Pro Vega 20,Intel Arc A370M,3464,3471,5030,5039,5115
 Girls' Frontline 2: Exilium,Intel Core i5-4590,GeForce GTX 750,8 GB,35 GB,Intel Core i5-4590,AMD FX-8300 Eight-Core,GeForce GTX 750,Radeon 660M,Intel Graphics,5374,5341,3334,3341,3159
 Grand Chase,Intel Core i5-2500K,GeForce GTX 1050,8 GB,20 GB,Intel Core i5-2500K,AMD Ryzen Embedded R1606G,GeForce GTX 1050,Radeon Pro Vega 20,Intel Arc A370M,4127,4153,5030,5039,5115
-Marvel’s Spider-Man Remastered,Intel Core i3-4160 ,GeForce GTX 950,8 GB,75 GB,Intel Core i3-4160,AMD Ryzen Embedded V1202B,GeForce GTX 950,Radeon Ryzen 7 6800HS Creator Edition,Intel Arc A310,3512,3512,5343,5348,5436
-Marvel’s Spider-Man: Miles Morales,Intel Core i3-4160 ,GeForce GTX 950 / Radeon RX 470,8 GB,75 GB,Intel Core i3-4160,AMD Ryzen Embedded V1202B,GeForce GTX 950,Radeon RX 470,Intel Arc Pro 140T GPU,3512,3512,5343,7960,6716
+Marvel’s Spider-Man Remastered,Intel Core i3-4160,GeForce GTX 950,8 GB,75 GB,Intel Core i3-4160,AMD Ryzen Embedded V1202B,GeForce GTX 950,Radeon Ryzen 7 6800HS Creator Edition,Intel Arc A310,3512,3512,5343,5348,5436
+Marvel’s Spider-Man: Miles Morales,Intel Core i3-4160,GeForce GTX 950 / Radeon RX 470,8 GB,75 GB,Intel Core i3-4160,AMD Ryzen Embedded V1202B,GeForce GTX 950,Radeon RX 470,Intel Arc Pro 140T GPU,3512,3512,5343,7960,6716
 Horizon Zero Dawn Remastered,Intel Core i3-8100 / AMD Ryzen 3 1300X,GeForce GTX 1650 / Radeon RX 5500 XT,16 GB,135 GB,Intel Core i3-8100,AMD Ryzen 3 1300X,GeForce GTX 1650,Radeon RX 5500 XT,Intel Arc Pro A60,6088,6941,7878,9091,9194
 Assassin's Creed III Remastered,Intel Core i5-2400 / AMD FX-6350,GeForce GTX 660 / Radeon R9 270X,8 GB,45 GB,Intel Core i5-2400,AMD FX-6350,GeForce GTX 660,Radeon R9 270X,Intel Arc 130V GPU,3870,4623,4023,4871,4621
 NieR:Automata,Intel Core i3-2100 / AMD A8-6500,GeForce GTX 770 / Radeon R9 270X,4 GB,50 GB,Intel Core i3-2100,AMD A8-6500,GeForce GTX 770,Radeon R9 270X,Intel Arc A310,1854,2842,5941,4871,5436
@@ -123,8 +123,8 @@ Grounded 2,Intel Core i5-8400 / AMD Ryzen 5 2600,GeForce GTX 1070 / Radeon RX 57
 FragPunk,Intel Core i7-4790 / AMD Ryzen 3 3100,GeForce GTX 750 Ti / Radeon RX 550 / Intel Arc A380,8 GB,60 GB,Intel Core i7-4790,AMD Ryzen 3 3100,GeForce GTX 750 Ti,Radeon RX 550,Intel Arc A380,8062,11563,3898,2688,6253
 Monster Hunter Wilds,Intel Core i5-10400 / AMD Ryzen 5 3600,GeForce GTX 1660 / Radeon RX 5500 XT,16 GB,75 GB,Intel Core i5-10400,AMD Ryzen 5 3600,GeForce GTX 1660,Radeon RX 5500 XT,Intel Arc A730M,12135,17708,11659,9091,9808
 MONSTER HUNTER RISE,Intel Core i3-4130 / AMD FX-6100,GeForce GT 1030 / Radeon RX 550,8 GB,36 GB,Intel Core i3-4130,AMD FX-6100,GeForce GT 1030,Radeon RX 550,Intel Iris Xe,3327,3696,2429,2688,2657
-Call of Duty: Black Ops 4,Intel Core i3-4340 / AMD FX-6300 ,GeForce GTX 1050 / Radeon HD 7950,8 GB,90 GB,Intel Core i3-4340,AMD FX-6300,GeForce GTX 1050,Radeon HD 7950,Intel Arc A310 LP,3460,4223,5030,4764,4795
-Call of Duty: Black Ops Cold War,Intel Core i3-4340 / AMD FX-6300 ,GeForce GTX 670 / Radeon HD 7950,8 GB,175 GB,Intel Core i3-4340,AMD FX-6300,GeForce GTX 670,Radeon HD 7950,Intel Arc A370M,3460,4223,5343,4764,5115
+Call of Duty: Black Ops 4,Intel Core i3-4340 / AMD FX-6300,GeForce GTX 1050 / Radeon HD 7950,8 GB,90 GB,Intel Core i3-4340,AMD FX-6300,GeForce GTX 1050,Radeon HD 7950,Intel Arc A310 LP,3460,4223,5030,4764,4795
+Call of Duty: Black Ops Cold War,Intel Core i3-4340 / AMD FX-6300,GeForce GTX 670 / Radeon HD 7950,8 GB,175 GB,Intel Core i3-4340,AMD FX-6300,GeForce GTX 670,Radeon HD 7950,Intel Arc A370M,3460,4223,5343,4764,5115
 Enshrouded,Intel Core i5-6400 @ 2.70GHz / AMD Ryzen 5 1500X,GeForce GTX 1060 / Radeon RX 580 / Intel Arc A380,16 GB,60 GB,Intel Core i5-6400 @ 2.70GHz,AMD Ryzen 5 1500X,GeForce GTX 1060,Radeon RX 580,Intel Arc A380,5172,9089,10081,8822,6253
 Raft,Intel Core i5-2500,GeForce GTX 750 Ti,6 GB,10 GB,Intel Core i5-2500,AMD Ryzen Embedded R1606G,GeForce GTX 750 Ti,Radeon Ryzen 7 Pro 7735U,Intel Arc 130V GPU,4127,4153,3898,3899,4621
 V Rising,Intel Core i5-6600 / AMD Ryzen 5 1500X,GeForce GTX 750 Ti / Radeon R7 360,12 GB,19 GB,Intel Core i5-6600,AMD Ryzen 5 1500X,GeForce GTX 750 Ti,Radeon R7 360,Intel Graphics,6304,9089,3898,3136,3159
@@ -141,7 +141,7 @@ NBA 2K26,Intel Core i3-9100 / AMD Ryzen 3 1200,GeForce GTX 1060 5GB / Radeon RX 
 NBA 2K24,Intel Core i3-2100 / AMD FX-6200,GeForce GTS 450 / Radeon HD 7770,6 GB,150 GB,Intel Core i3-2100,AMD FX-6200,GeForce GTS 450,Radeon HD 7770,Intel Iris Plus 645,1854,4093,1318,2174,1749
 eFootball,Intel Core i5-2300 / AMD FX-4350,GeForce GTX 660 Ti / Radeon HD 7790,8 GB,70 GB,Intel Core i5-2300,AMD FX-4350,GeForce GTX 660 Ti,Radeon HD 7790,Intel Graphics,3464,3176,4408,3090,3159
 theHunter: Call of the Wild,Intel Core i3-4170,GeForce GTX 660 / Radeon HD 7870,4 GB,60 GB,Intel Core i3-4170,AMD A8-7680,GeForce GTX 660,Radeon HD 7870,Intel Arc 130V GPU,3591,3592,4023,4602,4621
-Forza Horizon 5,Intel Core i5-4460 / AMD Ryzen 3 1200,GeForce GTX 970 / Radeon RX 470 / Intel Arc A380 ,8 GB,110 GB,Intel Core i5-4460,AMD Ryzen 3 1200,GeForce GTX 970,Radeon RX 470,Intel Arc A380,4908,6261,9642,7960,6253
+Forza Horizon 5,Intel Core i5-4460 / AMD Ryzen 3 1200,GeForce GTX 970 / Radeon RX 470 / Intel Arc A380,8 GB,110 GB,Intel Core i5-4460,AMD Ryzen 3 1200,GeForce GTX 970,Radeon RX 470,Intel Arc A380,4908,6261,9642,7960,6253
 Forza Motosport,Intel Core i5-8400 / AMD Ryzen 5 1600,GeForce GTX 1060 / Radeon RX 5500 XT / Intel Arc A380,8 GB,130 GB,Intel Core i5-8400,AMD Ryzen 5 1600,GeForce GTX 1060,Radeon RX 5500 XT,Intel Arc A380,9225,12275,10081,9091,6253
 Forza Horizon 4,Intel Core i3-4170,GeForce GTX 650 Ti / Radeon R7 250X,8 GB,80 GB,Intel Core i3-4170,AMD A8-7680,GeForce GTX 650 Ti,Radeon R7 250X,Intel Iris Xe,3591,3592,2528,2268,2657
 Forza Horizon 3,Intel Core i5-3570,GeForce GTX 750 Ti / Radeon R7 250X,8 GB,55 GB,Intel Core i5-3570,AMD Athlon Gold 7220U,GeForce GTX 750 Ti,Radeon R7 250X,Intel Graphics,4964,4888,3898,2268,3159
@@ -168,14 +168,14 @@ DARK SOULS III,Intel Core i3-2100 / AMD FX-6300,GeForce GTX 750 Ti / Radeon HD 7
 DARK SOULS II: Scholar of the First Sin,Intel Core i3-2100 / AMD A8-3870K APU,GeForce GTX 465 / Radeon HD 6870,4 GB,23 GB,Intel Core i3-2100,AMD A8-3870K APU,GeForce GTX 465,Radeon HD 6870,Intel Iris Xe,1854,2345,2653,2208,2657
 DARK SOULS: REMASTERED,Intel Core i5-2300 / AMD FX-6300,GeForce GTX 460 / Radeon HD 6870,6 GB,8 GB,Intel Core i5-2300,AMD FX-6300,GeForce GTX 460,Radeon HD 6870,Intel G35 Express,3464,4223,2273,2208,2097
 Rise of the Tomb Raider,Intel Core i3-2100,GeForce GTX 650 / Radeon HD 7770,6 GB,25 GB,Intel Core i3-2100,AMD Opteron 2378,GeForce GTX 650,Radeon HD 7770,Intel Iris Xe MAX 100,1854,1864,1749,2174,1964
-It Takes Two,Intel Core i3-2100T / AMD FX-6100 ,GeForce GTX 660 / Radeon R7 260X,8 GB,50 GB,Intel Core i3-2100T,AMD FX-6100,GeForce GTX 660,Radeon R7 260X,Intel Graphics,1518,3696,4023,3189,3159
+It Takes Two,Intel Core i3-2100T / AMD FX-6100,GeForce GTX 660 / Radeon R7 260X,8 GB,50 GB,Intel Core i3-2100T,AMD FX-6100,GeForce GTX 660,Radeon R7 260X,Intel Graphics,1518,3696,4023,3189,3159
 Split Fiction,Intel Core i5-6600K / AMD Ryzen 5 2600X,GeForce GTX 970 / Radeon RX 470,16 GB,85 GB,Intel Core i5-6600K,AMD Ryzen 5 2600X,GeForce GTX 970,Radeon RX 470,Intel Arc Pro A60,6304,13892,9642,7960,9194
-A Way Out,Intel Core i3-2100T / AMD FX-6100 ,GeForce GTX 650 Ti / Radeon HD 7750,8 GB,25 GB,Intel Core i3-2100T,AMD FX-6100,GeForce GTX 650 Ti,Radeon HD 7750,Intel G35 Express,1518,3696,2528,1692,2097
+A Way Out,Intel Core i3-2100T / AMD FX-6100,GeForce GTX 650 Ti / Radeon HD 7750,8 GB,25 GB,Intel Core i3-2100T,AMD FX-6100,GeForce GTX 650 Ti,Radeon HD 7750,Intel G35 Express,1518,3696,2528,1692,2097
 Chained Together,Intel Core i5-6600 / AMD Ryzen 5 1600X,GeForce GTX 1650,8 GB,8 GB,Intel Core i5-6600,AMD Ryzen 5 1600X,GeForce GTX 1650,Radeon Pro 5500 XT,Intel Arc A530M,6304,13036,7878,7940,7624
 Portal: Revolution,Intel Core i3-8300,GeForce GTX 750,8 GB,13 GB,Intel Core i3-8300,AMD FX-9370 Eight-Core,GeForce GTX 750,Radeon 660M,Intel Graphics,6340,6336,3334,3341,3159
 Escape the Backrooms,Intel Core i3-3220,GeForce GTX 650,8 GB,10 GB,Intel Core i3-3220,AMD Phenom II X4 925,GeForce GTX 650,Ryzen 3 PRO 4200GE with Radeon Graphics,Intel Iris Plus 645,2274,2277,1749,1748,1749
 Backrooms: Escape Together,Intel Core i5-4430,GeForce GTX 960,4 GB,50 GB,Intel Core i5-4430,AMD Opteron 4284,GeForce GTX 960,Ryzen 9 6900HS with Radeon Graphics,Intel Arc A380,4658,4665,6115,6109,6253
-Totally Accurate Battle Simulator,Intel Core i5-2400 / AMD FX-6300 ,GeForce GTX 670 / Radeon R9 270,8 GB,4 GB,Intel Core i5-2400,AMD FX-6300,GeForce GTX 670,Radeon R9 270,Intel Arc A310 LP,3870,4223,5343,4306,4795
+Totally Accurate Battle Simulator,Intel Core i5-2400 / AMD FX-6300,GeForce GTX 670 / Radeon R9 270,8 GB,4 GB,Intel Core i5-2400,AMD FX-6300,GeForce GTX 670,Radeon R9 270,Intel Arc A310 LP,3870,4223,5343,4306,4795
 Totally Accurate Battlegrounds,Intel Core i5-2520M,GeForce GTX 770 / Radeon R9 280,8 GB,5 GB,Intel Core i5-2520M,AMD A10-8700P,GeForce GTX 770,Radeon R9 280,Intel Arc Pro,2248,2248,5941,5542,5741
 Fall Guys,Intel Core i5-2500K,GeForce GTX 660 / Radeon HD 7950,8 GB,2 GB,Intel Core i5-2500K,AMD Ryzen Embedded R1606G,GeForce GTX 660,Radeon HD 7950,Intel Arc 130V GPU,4127,4153,4023,4764,4621
 REMATCH,Intel Core i5-9400 / AMD Ryzen 5 3400G,GeForce GTX 1060 / Radeon RX 5500,16 GB,20 GB,Intel Core i5-9400,AMD Ryzen 5 3400G,GeForce GTX 1060,Radeon RX 5500,Intel Arc Pro A60,9456,9220,10081,8780,9194
@@ -192,7 +192,7 @@ Sifu,Intel Core i5-3470 / AMD FX-4350,GeForce GT 640 / Radeon R7 250,8 GB,22 GB,
 Auto Chess,Intel Core i3-6100,GeForce GTX 750 Ti,8 GB,20 GB,Intel Core i3-6100,AMD Ryzen Embedded R1606G,GeForce GTX 750 Ti,Radeon Ryzen 7 Pro 7735U,Intel Arc 130V GPU,4129,4153,3898,3899,4621
 Warzone,Intel Core i5-8400 / AMD Ryzen 3 1200,GeForce GTX 960 / Radeon RX 470,8 GB,5 GB,Intel Core i5-8400,AMD Ryzen 3 1200,GeForce GTX 960,Radeon RX 470,Intel Arc 140T GPU,9225,6261,6115,7960,6864
 Eternal League,Intel Core i7-8086K / AMD Ryzen 5 2600X,GeForce GTX 960,8 GB,4 GB,Intel Core i7-8086K,AMD Ryzen 5 2600X,GeForce GTX 960,Ryzen 9 6900HS with Radeon Graphics,Intel Arc A380,14075,13892,6115,6109,6253
-Fishing Planet ,Intel Core2 Duo E4600,GeForce GTX 1060,4 GB,11 GB,Intel Core2 Duo E4600,AMD Turion II N550 Dual-Core,GeForce GTX 1060,Radeon RX 6550M,Intel Arc A730M,875,877,10081,9772,9808
+Fishing Planet,Intel Core2 Duo E4600,GeForce GTX 1060,4 GB,11 GB,Intel Core2 Duo E4600,AMD Turion II N550 Dual-Core,GeForce GTX 1060,Radeon RX 6550M,Intel Arc A730M,875,877,10081,9772,9808
 Trackmania,Intel Core i5-2500K / AMD FX-6100,GeForce GTX 660 / Radeon R9 270X,8 GB,2 GB,Intel Core i5-2500K,AMD FX-6100,GeForce GTX 660,Radeon R9 270X,Intel Arc 130V GPU,4127,3696,4023,4871,4621
 Lethal Company,Intel Core i5-7400,GeForce GTX 1050,4 GB,2 GB,Intel Core i5-7400,AMD FX-8320 Eight-Core,GeForce GTX 1050,Radeon Pro Vega 20,Intel Arc A370M,5475,5454,5030,5039,5115
 Resident Evil Village,Intel Core i5-7500 / AMD Ryzen 3 1200,GeForce GTX 1050 Ti / Radeon RX 560,16 GB,35 GB,Intel Core i5-7500,AMD Ryzen 3 1200,GeForce GTX 1050 Ti,Radeon RX 560,Intel Arc A370M,6027,6261,6339,3659,5115
@@ -204,3 +204,4 @@ Battlefield V,Intel Core i5-6600K / AMD FX-8350,GeForce GTX 1050 / Radeon RX 560
 Battlefield 4,Intel Core2 Duo E6600 / AMD Athlon 64 X2 Dual Core 5600+,GeForce 8800 GT / Radeon HD 3870,4 GB,40 GB,Intel Core2 Duo E6600 / AMD Athlon 64 X2 Dual Core 5600+,AMD Athlon II X2 4400e,GeForce 8800 GT,Radeon HD 3870,Intel HD P4600,942,944,462,551,505
 Battlefield 2042,Intel Core i5-6600K / AMD Ryzen 5 1600,GeForce GTX 1050 Ti / Radeon RX 560,8 GB,100 GB,Intel Core i5-6600K,AMD Ryzen 5 1600,GeForce GTX 1050 Ti,Radeon RX 560,Intel Arc A370M,6304,12275,6339,3659,5115
 Battlefield 1,Intel Core i5-6600K / AMD FX-6350,GeForce GTX 660 / Radeon HD 7850,8 GB,50 GB,Intel Core i5-6600K,AMD FX-6350,GeForce GTX 660,Radeon HD 7850,Intel Arc 130V GPU,6304,4623,4023,3886,4621
+Counter-Strike: Global Offensive,Intel Core i5-750,GeForce GTX 750 Ti,8 GB,85 GB,Intel Core i5-750,AMD Ryzen Embedded V1404I,GeForce GTX 750 Ti,Radeon Ryzen 7 Pro 7735U,Intel Arc 130V GPU,6027,6007,3898,3899,4621
