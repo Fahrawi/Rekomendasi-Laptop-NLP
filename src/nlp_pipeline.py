@@ -114,6 +114,8 @@ EXPLICIT_GAME_CONTEXT_TERMS = [
     'ngegame',
 ]
 
+# === PREFERENCE CATEGORIES ===
+# Kategori preferensi yang BERBEDA dengan sorting/weighting rules berbeda
 CHEAPEST_PREFERENCE_TERMS = [
     'termurah',
     'paling murah',
@@ -121,12 +123,36 @@ CHEAPEST_PREFERENCE_TERMS = [
     'harga paling rendah',
     'low budget',
     'budget minim',
-    'teringan',
-    'terkencang',
-    'terencang',
-    'paling ringan',
-    'paling kencang harga',
+    'teringan',  # Lightweight price (murah + ringan)
 ]
+
+PERFORMANCE_PREFERENCE_TERMS = [
+    'terkencang',
+    'tercepat',
+    'tergorengan',
+    'paling kencang',
+    'paling cepat',
+    'paling power',
+    'paling powerful',
+]
+
+VALUE_PREFERENCE_TERMS = [
+    'terbaik',
+    'paling optimal',
+    'optimal',
+    'paling baik',
+    'terbaik harga',
+    'best value',
+]
+
+LIGHTWEIGHT_PREFERENCE_TERMS = [
+    'paling ringan',
+    'paling enteng',
+    'ringan sekali',
+    'enteng sekali',
+]
+
+# More terms can be added based on user feedback
 
 
 def has_explicit_game_context(query: str) -> bool:
@@ -137,12 +163,32 @@ def has_explicit_game_context(query: str) -> bool:
     return False
 
 
-def has_cheapest_preference(query: str) -> bool:
+def detect_preference_category(query: str) -> str:
+    """
+    Detect preference category from query.
+    Returns: 'CHEAP', 'PERFORMANCE', 'VALUE', 'LIGHTWEIGHT', or 'BALANCED' (default)
+    """
     query_lower = query.lower()
-    for term in CHEAPEST_PREFERENCE_TERMS:
-        if re.search(r'\b' + re.escape(term) + r'\b', query_lower):
-            return True
-    return False
+    
+    # Check in priority order (if multiple detected, return highest priority)
+    if any(re.search(r'\b' + re.escape(term) + r'\b', query_lower) for term in PERFORMANCE_PREFERENCE_TERMS):
+        return 'PERFORMANCE'
+    
+    if any(re.search(r'\b' + re.escape(term) + r'\b', query_lower) for term in VALUE_PREFERENCE_TERMS):
+        return 'VALUE'
+    
+    if any(re.search(r'\b' + re.escape(term) + r'\b', query_lower) for term in CHEAPEST_PREFERENCE_TERMS):
+        return 'CHEAP'
+    
+    if any(re.search(r'\b' + re.escape(term) + r'\b', query_lower) for term in LIGHTWEIGHT_PREFERENCE_TERMS):
+        return 'LIGHTWEIGHT'
+    
+    return 'BALANCED'
+
+
+def has_cheapest_preference(query: str) -> bool:
+    """Backward compatibility wrapper"""
+    return detect_preference_category(query) == 'CHEAP'
 
 
 def apply_manual_game_aliases(user_query, found_games, game_list):
@@ -1069,7 +1115,9 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
     # Detect application intent (design, AI, web dev, etc.)
     app_intent = detect_application_intent(user_query)
     has_game_context = has_explicit_game_context(user_query)
-    prefer_cheapest = has_cheapest_preference(user_query)
+    
+    # NEW: Detect preference category (CHEAP, PERFORMANCE, VALUE, LIGHTWEIGHT, BALANCED)
+    preference_category = detect_preference_category(user_query)
 
     found_games = apply_manual_game_aliases(user_query, found_games, game_list)
 
@@ -1085,7 +1133,8 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
         "budget": extracted_budget,
         "ram": extracted_ram,
         "budget_span": budget_span,
-        "app_intent": app_intent,  # NEW: Application intent mapping
+        "app_intent": app_intent,
         "has_game_context": has_game_context,
-        "prefer_cheapest": prefer_cheapest,
+        "prefer_cheapest": preference_category == 'CHEAP',  # Backward compatibility
+        "preference_category": preference_category,  # NEW: Preference category
     }

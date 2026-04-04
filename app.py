@@ -759,7 +759,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         print(f"   Laptops/Brand: {nlp_result.get('found_laptops', [])}")
         print(f"   RAM: {nlp_result.get('ram', [])}")
         print(f"   Game Context: {nlp_result.get('has_game_context', False)}")
-        print(f"   Prefer Cheapest: {nlp_result.get('prefer_cheapest', False)}")
+        print(f"   Preference Category: {nlp_result.get('preference_category', 'BALANCED')}")
         print(f"   NLP Mode: requested={nlp_runtime.get('nlp_requested_mode')} selected={nlp_runtime.get('nlp_selected_mode')}")
         if nlp_runtime.get('nlp_warning'):
             print(f"   ⚠ NLP Warning: {nlp_runtime.get('nlp_warning')}")
@@ -768,7 +768,8 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         # Determine intent based on whether games or other keywords were found
         games = nlp_result.get('found_games', [])
         has_game_context = nlp_result.get('has_game_context', False)
-        prefer_cheapest = nlp_result.get('prefer_cheapest', False)
+        preference_category = nlp_result.get('preference_category', 'BALANCED')
+        prefer_cheapest = preference_category == 'CHEAP'  # For compatibility
         budget_max = nlp_result.get('budget')  # Will be None if not detected
         ram_min = nlp_result.get('ram', [None])[0] if nlp_result.get('ram') else None  # Get first RAM if any
         brand = nlp_result.get('found_laptops', [None])[0] if nlp_result.get('found_laptops') else None
@@ -901,11 +902,88 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         filtered_count = len(filtered_df)
         print(f"   ✅ Filtered: {filtered_count} laptop")
         
-        # ========== SPECIAL HANDLING: TERMURAH + GAMING = SORT BY PRICE DIRECTLY ==========
+        # ========== SPECIAL HANDLING: PREFERENCE CATEGORIES WITH DIFFERENT SORTING ==========
+        # Different preference categories require different sorting strategies
         
-        # Untuk query "termurah" dengan gaming intent, langsung sort by price tanpa TOPSIS
-        if prefer_cheapest and intent == "FIND_LAPTOP_FOR_GAME" and games and filtered_count > 0:
-            print(f"\n📊 CHEAPEST-PREFERENCE PATH: Sort by price for gaming")
+        # Category 1: PERFORMANCE - Sort by CPU+GPU score descending (highest performance first)
+        if preference_category == 'PERFORMANCE' and filtered_count > 0:
+            print(f"\n📊 PERFORMANCE-PREFERENCE PATH: Sort by CPU+GPU score descending")
+            
+            # Sort by combined CPU+GPU score, then by price ascending as tiebreaker
+            ranked_df = filtered_df.copy()
+            ranked_df['combined_score'] = ranked_df['CPU_score'] + ranked_df['GPU_score']
+            ranked_df = ranked_df.sort_values(
+                by=['combined_score', 'Final Price'],
+                ascending=[False, True]  # High performance first, then low price
+            ).reset_index(drop=True)
+            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+            ranked_df['TOPSIS_Score'] = 1.0  # Dummy score untuk compatibility
+            
+            print(f"   ✓ Sorted by performance descending (terkencang duluan)")
+            summary = get_topsis_summary(ranked_df, top_n=top_n)
+            ranked_count = len(ranked_df)
+            print(f"   ✅ Ranked: {ranked_count} laptop (by performance)")
+            
+            # ========== FORMAT RESPONSE ==========
+            print(f"\n✨ Top {top_n} Performance Recommendations:")
+            
+            recommendations = []
+            if summary and "top_recommendations" in summary:
+                for idx, rec in enumerate(summary["top_recommendations"]):
+                    reasoning = f"Rank #{rec['rank']}: Performa tertinggi (CPU+GPU score terkencang)"
+                    
+                    # Extract specs from summary
+                    specs = rec.get('specs', {})
+                    
+                    recommendation = RecommendedLaptop(
+                        rank=rec['rank'],
+                        brand=rec.get('brand', 'N/A'),
+                        model=rec.get('model', 'N/A'),
+                        topsis_score=rec.get('topsis_score', 1.0),
+                        specs=LaptopSpecsResponse(
+                            cpu_name=specs.get('cpu_name'),
+                            cpu_score=specs.get('cpu_score'),
+                            gpu_name=specs.get('gpu_name'),
+                            gpu_score=specs.get('gpu_score'),
+                            ram=specs.get('ram'),
+                            ram_type=specs.get('ram_type'),
+                            storage=specs.get('storage'),
+                            final_price=rec.get('price')
+                        ),
+                        reasoning=reasoning
+                    )
+                    recommendations.append(recommendation)
+            
+            response = HybridRecommendResponse(
+                status="success",
+                intent=intent,
+                filtered_count=filtered_count,
+                ranked_count=ranked_count,
+                weights_applied={"CPU_Score": 0.5, "GPU_Score": 0.5},
+                recommendations=recommendations,
+                message=f"Berhasil merekomendasikan {len(recommendations)} laptop berkinerja tinggi dari {ranked_count} laptop yang cocok."
+            )
+            
+            if games and intent == "FIND_LAPTOP_FOR_GAME":
+                app_reqs = min_req_df[min_req_df['App'].str.lower().isin([g.lower() for g in games])]
+                if not app_reqs.empty:
+                    game_reqs = []
+                    for _, req in app_reqs.iterrows():
+                        ram_raw = str(req.get('RAM', '')).strip()
+                        ram_display = ram_raw if 'gb' in ram_raw.lower() else f"{ram_raw} GB"
+                        game_reqs.append(SystemRequirements(
+                            app_name=req['App'],
+                            cpu=req.get('CPU', 'N/A'),
+                            gpu=req.get('GPU', 'N/A'),
+                            ram=ram_display
+                        ))
+                    response.app_requirements = game_reqs
+            
+            return response
+        
+        # Category 2: CHEAP - Sort by price ascending (cheapest first)
+        if preference_category == 'CHEAP' and intent == "FIND_LAPTOP_FOR_GAME" and games and filtered_count > 0:
+            print(f"\n📊 CHEAP-PREFERENCE PATH: Sort by price for gaming")
             ranked_df = filtered_df.sort_values(
                 by=['Final Price'],
                 ascending=[True]
@@ -976,11 +1054,13 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             return response
         
         # ========== NORMAL PATH: AHP WEIGHTING + TOPSIS RANKING ==========
+        # For CHEAP category in non-gaming context, VALUE category, LIGHTWEIGHT, or BALANCED
         
         # Get AHP weights based on intent
         ahp_weights = get_intent_based_weights(intent)
-        logger.warning(f"[DEBUG] prefer_cheapest = {prefer_cheapest}")
-        if prefer_cheapest:
+        logger.warning(f"[DEBUG] preference_category = {preference_category}")
+        
+        if preference_category == 'CHEAP':
             logger.warning(f"[DEBUG] Weights BEFORE: {ahp_weights}")
             ahp_weights = apply_cheapest_preference_weights(ahp_weights)
             logger.warning(f"[DEBUG] Weights AFTER: {ahp_weights}")
@@ -1016,14 +1096,22 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                 message="Gagal melakukan ranking dengan TOPSIS."
             )
 
-        # If user explicitly asks for cheapest option, price order becomes primary.
-        if prefer_cheapest and 'Final Price' in ranked_df.columns and 'TOPSIS_Score' in ranked_df.columns:
+        # Apply category-specific sorting
+        if preference_category == 'CHEAP' and 'Final Price' in ranked_df.columns and 'TOPSIS_Score' in ranked_df.columns:
             ranked_df = ranked_df.sort_values(
                 by=['Final Price', 'TOPSIS_Score'],
                 ascending=[True, False]
             ).reset_index(drop=True)
             ranked_df['Rank'] = range(1, len(ranked_df) + 1)
             print("   ✓ Cheapest preference applied: sorted by lowest Final Price")
+        elif preference_category == 'LIGHTWEIGHT' and 'Final Price' in ranked_df.columns and 'TOPSIS_Score' in ranked_df.columns:
+            # For lightweight, prioritize lower price and smaller specs (less is more)
+            ranked_df = ranked_df.sort_values(
+                by=['Final Price', 'TOPSIS_Score'],
+                ascending=[True, False]
+            ).reset_index(drop=True)
+            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+            print("   ✓ Lightweight preference applied: prioritizing cost-efficiency")
         
         # Get top-N recommendations with summary stats
         summary = get_topsis_summary(ranked_df, top_n=top_n)
