@@ -1,4 +1,3 @@
-# app.py
 import sys
 import os
 import traceback
@@ -6,8 +5,13 @@ import re
 import importlib
 import pandas as pd
 import numpy as np
+import logging
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', force=True)
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'scripts'))
@@ -897,10 +901,89 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         filtered_count = len(filtered_df)
         print(f"   ✅ Filtered: {filtered_count} laptop")
         
+        # ========== SPECIAL HANDLING: TERMURAH + GAMING = SORT BY PRICE DIRECTLY ==========
+        
+        # Untuk query "termurah" dengan gaming intent, langsung sort by price tanpa TOPSIS
+        if prefer_cheapest and intent == "FIND_LAPTOP_FOR_GAME" and games and filtered_count > 0:
+            print(f"\n📊 CHEAPEST-PREFERENCE PATH: Sort by price for gaming")
+            ranked_df = filtered_df.sort_values(
+                by=['Final Price'],
+                ascending=[True]
+            ).reset_index(drop=True)
+            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+            ranked_df['TOPSIS_Score'] = 1.0  # Dummy score untuk compatibility
+            
+            print(f"   ✓ Sorted by price ascending (termurah duluan)")
+            summary = get_topsis_summary(ranked_df, top_n=top_n)
+            ranked_count = len(ranked_df)
+            print(f"   ✅ Ranked: {ranked_count} laptop (by price)")
+            
+            # ========== FORMAT RESPONSE ==========
+            print(f"\n✨ Top {top_n} Cheapest Recommendations:")
+            
+            recommendations = []
+            if summary and "top_recommendations" in summary:
+                for idx, rec in enumerate(summary["top_recommendations"]):
+                    reasoning = f"Rank #{rec['rank']}: Termurah yang bisa main {', '.join(games)}"
+                    
+                    # Extract specs from summary
+                    specs = rec.get('specs', {})
+                    
+                    recommendation = RecommendedLaptop(
+                        rank=rec['rank'],
+                        brand=rec.get('brand', 'N/A'),
+                        model=rec.get('model', 'N/A'),
+                        topsis_score=rec.get('topsis_score', 1.0),
+                        specs=LaptopSpecsResponse(
+                            cpu_name=specs.get('cpu_name'),
+                            cpu_score=specs.get('cpu_score'),
+                            gpu_name=specs.get('gpu_name'),
+                            gpu_score=specs.get('gpu_score'),
+                            ram=specs.get('ram'),
+                            ram_type=specs.get('ram_type'),
+                            storage=specs.get('storage'),
+                            final_price=rec.get('price')
+                        ),
+                        reasoning=reasoning
+                    )
+                    recommendations.append(recommendation)
+            
+            response = HybridRecommendResponse(
+                status="success",
+                intent=intent,
+                filtered_count=filtered_count,
+                ranked_count=ranked_count,
+                weights_applied={"Price": 1.0},
+                recommendations=recommendations,
+                message=f"Berhasil merekomendasikan {len(recommendations)} laptop termurah dari {ranked_count} laptop yang cocok."
+            )
+            
+            if games and intent == "FIND_LAPTOP_FOR_GAME":
+                app_reqs = min_req_df[min_req_df['App'].str.lower().isin([g.lower() for g in games])]
+                if not app_reqs.empty:
+                    game_reqs = []
+                    for _, req in app_reqs.iterrows():
+                        ram_raw = str(req.get('RAM', '')).strip()
+                        ram_display = ram_raw if 'gb' in ram_raw.lower() else f"{ram_raw} GB"
+                        game_reqs.append(SystemRequirements(
+                            app_name=req['App'],
+                            cpu=req.get('CPU', 'N/A'),
+                            gpu=req.get('GPU', 'N/A'),
+                            ram=ram_display
+                        ))
+                    response.app_requirements = game_reqs
+            
+            return response
+        
+        # ========== NORMAL PATH: AHP WEIGHTING + TOPSIS RANKING ==========
+        
         # Get AHP weights based on intent
         ahp_weights = get_intent_based_weights(intent)
+        logger.warning(f"[DEBUG] prefer_cheapest = {prefer_cheapest}")
         if prefer_cheapest:
+            logger.warning(f"[DEBUG] Weights BEFORE: {ahp_weights}")
             ahp_weights = apply_cheapest_preference_weights(ahp_weights)
+            logger.warning(f"[DEBUG] Weights AFTER: {ahp_weights}")
             print(f"   ✓ Cheapest preference detected: prioritizing Price weight")
         print(f"   ✅ Weights applied: {ahp_weights}")
         
