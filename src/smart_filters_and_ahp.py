@@ -411,6 +411,21 @@ def get_intent_based_weights(intent: str) -> Dict[str, float]:
         },
         
         # =====================================================================
+        # 1b. GENERAL PURPOSE (Default fallback for unknown intents)
+        # =====================================================================
+        # Alasan: Balanced weights untuk general use (productivity, browsing).
+        # Prioritas pada value for money, availability dalam range budget.
+        # RAM moderate untuk multitasking, CPU smooth operation, Price important.
+        "FIND_LAPTOP_GENERAL": {
+            'CPU': 0.20,           # Decent CPU for smooth operation
+            'GPU': 0.20,           # GPU optional but nice to have
+            'RAM': 0.25,           # Important for multitasking
+            'Storage': 0.15,       # Moderate importance
+            'Price': 0.20,         # Budget is significant factor
+            'Storage_Type_Bonus': 0.03  # SSD appreciated
+        },
+        
+        # =====================================================================
         # 2. 3D DESIGN (CAD, Blender, VRAY)
         # =====================================================================
         # Alasan: GPU untuk CUDA rendering, CPU untuk modeling,
