@@ -1125,6 +1125,14 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             )
 
         # Apply category-specific sorting
+        if intent == "FIND_LAPTOP_FOR_GAME" and all(col in ranked_df.columns for col in ['GPU_score', 'CPU_score', 'RAM', 'Final Price', 'TOPSIS_Score']):
+            ranked_df = ranked_df.sort_values(
+                by=['GPU_score', 'CPU_score', 'RAM', 'TOPSIS_Score', 'Final Price'],
+                ascending=[False, False, False, False, True]
+            ).reset_index(drop=True)
+            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+            print("   ✓ Gaming tie-break applied: GPU > CPU > RAM > TOPSIS > Price")
+
         if preference_category == 'CHEAP' and 'Final Price' in ranked_df.columns and 'TOPSIS_Score' in ranked_df.columns:
             ranked_df = ranked_df.sort_values(
                 by=['Final Price', 'TOPSIS_Score'],

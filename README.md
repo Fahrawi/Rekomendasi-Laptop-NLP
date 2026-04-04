@@ -29,6 +29,31 @@ Endpoint utama yang dipakai frontend adalah `POST /api/recommend-hybrid`.
 
 ---
 
+## Diagram Alur
+
+```mermaid
+flowchart TD
+  A[User Query] --> B[NLP Pipeline]
+  B --> C[Extract intent, budget, games, preference]
+  C --> D[Phase 1 Smart Filters]
+  D --> E{Gaming query?}
+  E -- Yes --> F[Benchmark minimum check]
+  E -- No --> G[Intent-based AHP weights]
+  F --> G
+  G --> H[TOPSIS ranking]
+  H --> I{Preference category}
+  I -- CHEAP --> J[Sort by lowest price]
+  I -- PERFORMANCE --> K[Sort by highest CPU/GPU]
+  I -- LIGHTWEIGHT --> L[Sort by laptop weight if available]
+  I -- VALUE / BALANCED --> M[Use TOPSIS score order]
+  J --> N[JSON response]
+  K --> N
+  L --> N
+  M --> N
+```
+
+---
+
 ## Quick Start
 
 ### 1. Install dependensi
