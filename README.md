@@ -213,6 +213,8 @@ Prioritas intent di backend:
 Kalau ada target benchmark yang dikenali di query, sistem membaca minimum requirement dari database lalu membuang laptop yang tidak memenuhi threshold CPU / GPU minimum.
 Ini berlaku bukan hanya untuk query yang eksplisit bilang gaming, tetapi untuk semua query yang membawa target aplikasi/game yang punya data benchmark.
 
+Setelah lolos minimum, sistem menghitung `Benchmark_Fit` dari rasio CPU, GPU, RAM, dan Storage terhadap threshold minimum. Skor ini memakai bottleneck-aware harmonic mean, jadi komponen yang lemah akan menurunkan skor akhir.
+
 ### 5. AHP weighting
 
 `get_intent_based_weights()` memberi bobot sesuai intent.

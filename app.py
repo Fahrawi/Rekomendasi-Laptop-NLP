@@ -400,6 +400,53 @@ def apply_game_benchmark_filter(df, game_names, min_req_df):
     return filtered
 
 
+def compute_benchmark_fit_score(row: pd.Series, thresholds: Dict[str, float]) -> float:
+    """Compute a weighted benchmark fit score from minimum requirement ratios.
+
+    Higher is better. The score is harmonic-mean based so a weak component
+    becomes a bottleneck and lowers the final benchmark fit score.
+    """
+    row_cpu_score = float(row.get('CPU_score', 0) or 0)
+    row_gpu_score = float(row.get('GPU_score', 0) or 0)
+    row_ram = float(extract_numeric_value(row.get('RAM', 0)) or 0)
+    row_storage = float(extract_numeric_value(row.get('Storage', 0)) or 0)
+
+    cpu_req = float(max(1.0, thresholds.get('CPU_Intel_score', 0), thresholds.get('CPU_AMD_score', 0)))
+    gpu_req = float(max(1.0, thresholds.get('GPU_NVIDIA_score', 0), thresholds.get('GPU_AMD_score', 0), thresholds.get('GPU_Intel_score', 0)))
+    ram_req = float(max(1.0, thresholds.get('RAM', 0)))
+    storage_req = float(max(1.0, thresholds.get('File Size', 0)))
+
+    ratios = [
+        ('CPU', row_cpu_score / cpu_req),
+        ('GPU', row_gpu_score / gpu_req),
+        ('RAM', row_ram / ram_req),
+        ('Storage', row_storage / storage_req),
+    ]
+
+    # Clip extreme values so a single oversized component does not dominate.
+    weights = {
+        'CPU': 0.25,
+        'GPU': 0.45,
+        'RAM': 0.20,
+        'Storage': 0.10,
+    }
+
+    clipped = []
+    for name, ratio in ratios:
+        clipped_ratio = max(0.0, min(float(ratio), 3.0))
+        clipped.append((name, clipped_ratio))
+
+    denominator = 0.0
+    for name, ratio in clipped:
+        denominator += weights[name] / max(ratio, 1e-9)
+
+    if denominator <= 0:
+        return 0.0
+
+    harmonic_mean = sum(weights.values()) / denominator
+    return float(harmonic_mean)
+
+
 def apply_cheapest_preference_weights(base_weights: Dict[str, float]) -> Dict[str, float]:
     """Re-balance weights so price dominates when user asks for cheapest options."""
     adjusted = dict(base_weights)
@@ -1120,8 +1167,20 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                 message="Gagal melakukan ranking dengan TOPSIS."
             )
 
+        if games:
+            thresholds, _matched_games = build_game_benchmark_thresholds(games, min_req_df)
+            if thresholds:
+                ranked_df['Benchmark_Fit'] = ranked_df.apply(lambda row: compute_benchmark_fit_score(row, thresholds), axis=1)
+
         # Apply category-specific sorting
-        if intent == "FIND_LAPTOP_FOR_GAME" and all(col in ranked_df.columns for col in ['GPU_score', 'CPU_score', 'RAM', 'Final Price', 'TOPSIS_Score']):
+        if games and 'Benchmark_Fit' in ranked_df.columns:
+            ranked_df = ranked_df.sort_values(
+                by=['GPU_score', 'CPU_score', 'Benchmark_Fit', 'RAM', 'TOPSIS_Score', 'Final Price'],
+                ascending=[False, False, False, False, False, True]
+            ).reset_index(drop=True)
+            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+            print("   ✓ Benchmark fit applied: GPU > CPU > fit score > RAM > TOPSIS > Price")
+        elif intent == "FIND_LAPTOP_FOR_GAME" and all(col in ranked_df.columns for col in ['GPU_score', 'CPU_score', 'RAM', 'Final Price', 'TOPSIS_Score']):
             ranked_df = ranked_df.sort_values(
                 by=['GPU_score', 'CPU_score', 'RAM', 'TOPSIS_Score', 'Final Price'],
                 ascending=[False, False, False, False, True]
