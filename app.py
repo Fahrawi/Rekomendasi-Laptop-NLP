@@ -304,6 +304,31 @@ def normalize_requirement_display(game_name, cpu_value, gpu_value):
 
     return cpu_text or 'N/A', gpu_text or 'N/A'
 
+
+def apply_cheapest_preference_weights(base_weights: Dict[str, float]) -> Dict[str, float]:
+    """Re-balance weights so price dominates when user asks for cheapest options."""
+    adjusted = dict(base_weights)
+    non_bonus_keys = ['CPU', 'GPU', 'RAM', 'Storage', 'Price']
+    bonus_weight = float(adjusted.get('Storage_Type_Bonus', 0.0))
+
+    # Keep at least 45% emphasis on price for "termurah" queries.
+    target_price = max(0.45, float(adjusted.get('Price', 0.0)))
+    available_non_bonus_total = max(1e-9, 1.0 - bonus_weight)
+    max_price_allowed = max(0.0, available_non_bonus_total - 1e-6)
+    target_price = min(target_price, max_price_allowed)
+
+    other_keys = [k for k in non_bonus_keys if k != 'Price']
+    other_sum = sum(float(adjusted.get(k, 0.0)) for k in other_keys)
+    remaining = max(0.0, available_non_bonus_total - target_price)
+
+    adjusted['Price'] = target_price
+    if other_sum > 0:
+        scale = remaining / other_sum
+        for k in other_keys:
+            adjusted[k] = float(adjusted.get(k, 0.0)) * scale
+
+    return adjusted
+
 def get_game_specs_from_df(game_name, min_df, rec_df):
     min_row = min_df[min_df['App'].str.lower() == game_name.lower()]
     rec_row = rec_df[rec_df['App'].str.lower() == game_name.lower()]
@@ -639,6 +664,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         print(f"   Laptops/Brand: {nlp_result.get('found_laptops', [])}")
         print(f"   RAM: {nlp_result.get('ram', [])}")
         print(f"   Game Context: {nlp_result.get('has_game_context', False)}")
+        print(f"   Prefer Cheapest: {nlp_result.get('prefer_cheapest', False)}")
         print(f"   NLP Mode: requested={nlp_runtime.get('nlp_requested_mode')} selected={nlp_runtime.get('nlp_selected_mode')}")
         if nlp_runtime.get('nlp_warning'):
             print(f"   ⚠ NLP Warning: {nlp_runtime.get('nlp_warning')}")
@@ -647,6 +673,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         # Determine intent based on whether games or other keywords were found
         games = nlp_result.get('found_games', [])
         has_game_context = nlp_result.get('has_game_context', False)
+        prefer_cheapest = nlp_result.get('prefer_cheapest', False)
         budget_max = nlp_result.get('budget')  # Will be None if not detected
         ram_min = nlp_result.get('ram', [None])[0] if nlp_result.get('ram') else None  # Get first RAM if any
         brand = nlp_result.get('found_laptops', [None])[0] if nlp_result.get('found_laptops') else None
@@ -769,6 +796,9 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         
         # Get AHP weights based on intent
         ahp_weights = get_intent_based_weights(intent)
+        if prefer_cheapest:
+            ahp_weights = apply_cheapest_preference_weights(ahp_weights)
+            print(f"   ✓ Cheapest preference detected: prioritizing Price weight")
         print(f"   ✅ Weights applied: {ahp_weights}")
         
         # ========== PHASE 2: TOPSIS RANKING ==========
@@ -799,6 +829,15 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                 recommendations=[],
                 message="Gagal melakukan ranking dengan TOPSIS."
             )
+
+        # If user explicitly asks for cheapest option, price order becomes primary.
+        if prefer_cheapest and 'Final Price' in ranked_df.columns and 'TOPSIS_Score' in ranked_df.columns:
+            ranked_df = ranked_df.sort_values(
+                by=['Final Price', 'TOPSIS_Score'],
+                ascending=[True, False]
+            ).reset_index(drop=True)
+            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+            print("   ✓ Cheapest preference applied: sorted by lowest Final Price")
         
         # Get top-N recommendations with summary stats
         summary = get_topsis_summary(ranked_df, top_n=top_n)

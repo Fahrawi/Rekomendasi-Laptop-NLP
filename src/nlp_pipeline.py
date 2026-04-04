@@ -113,10 +113,27 @@ EXPLICIT_GAME_CONTEXT_TERMS = [
     'ngegame',
 ]
 
+CHEAPEST_PREFERENCE_TERMS = [
+    'termurah',
+    'paling murah',
+    'murah',
+    'harga paling rendah',
+    'low budget',
+    'budget minim',
+]
+
 
 def has_explicit_game_context(query: str) -> bool:
     query_lower = query.lower()
     for term in EXPLICIT_GAME_CONTEXT_TERMS:
+        if re.search(r'\b' + re.escape(term) + r'\b', query_lower):
+            return True
+    return False
+
+
+def has_cheapest_preference(query: str) -> bool:
+    query_lower = query.lower()
+    for term in CHEAPEST_PREFERENCE_TERMS:
         if re.search(r'\b' + re.escape(term) + r'\b', query_lower):
             return True
     return False
@@ -1046,6 +1063,7 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
     # Detect application intent (design, AI, web dev, etc.)
     app_intent = detect_application_intent(user_query)
     has_game_context = has_explicit_game_context(user_query)
+    prefer_cheapest = has_cheapest_preference(user_query)
 
     found_games = apply_manual_game_aliases(user_query, found_games, game_list)
 
@@ -1062,5 +1080,6 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
         "ram": extracted_ram,
         "budget_span": budget_span,
         "app_intent": app_intent,  # NEW: Application intent mapping
-        "has_game_context": has_game_context
+        "has_game_context": has_game_context,
+        "prefer_cheapest": prefer_cheapest,
     }
