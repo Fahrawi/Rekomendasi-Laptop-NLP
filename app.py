@@ -267,6 +267,29 @@ def to_python_int(val):
     return val
 
 
+def extract_numeric_value(value):
+    digits = re.findall(r'\d+', str(value or ''))
+    return int(''.join(digits)) if digits else 0
+
+
+def get_cpu_vendor(cpu_name):
+    cpu_text = str(cpu_name or '').lower()
+    if 'amd' in cpu_text or any(keyword in cpu_text for keyword in ['ryzen', 'fx', 'athlon', 'phenom', 'opteron']):
+        return 'amd'
+    return 'intel'
+
+
+def get_gpu_vendor(gpu_name):
+    gpu_text = str(gpu_name or '').lower()
+    if any(keyword in gpu_text for keyword in ['rtx', 'gtx', 'mx', 'geforce']):
+        return 'nvidia'
+    if any(keyword in gpu_text for keyword in ['radeon', 'rx', 'vega', 'pro']):
+        return 'amd'
+    if any(keyword in gpu_text for keyword in ['iris', 'uhd', 'hd graphics', 'integrated']):
+        return 'intel'
+    return 'intel'
+
+
 def format_budget_for_message(budget):
     if isinstance(budget, tuple):
         return f"Rp {budget[0]:,} - Rp {budget[1]:,}"
@@ -303,6 +326,74 @@ def normalize_requirement_display(game_name, cpu_value, gpu_value):
             gpu_text = 'GeForce GTX 750 Ti'
 
     return cpu_text or 'N/A', gpu_text or 'N/A'
+
+
+def build_game_benchmark_thresholds(game_names, min_req_df):
+    thresholds = {
+        'CPU_Intel_score': 0,
+        'CPU_AMD_score': 0,
+        'GPU_NVIDIA_score': 0,
+        'GPU_AMD_score': 0,
+        'GPU_Intel_score': 0,
+        'RAM': 0,
+        'File Size': 0,
+    }
+    matched_games = []
+
+    for game in game_names:
+        min_row = min_req_df[min_req_df['App'].str.lower() == game.lower()]
+        if min_row.empty:
+            continue
+
+        matched_games.append(game)
+        req = min_row.iloc[0]
+        for key in ['CPU_Intel_score', 'CPU_AMD_score', 'GPU_NVIDIA_score', 'GPU_AMD_score', 'GPU_Intel_score']:
+            thresholds[key] = max(thresholds[key], to_python_int(req.get(key, 0)) or 0)
+        thresholds['RAM'] = max(thresholds['RAM'], extract_numeric_value(req.get('RAM', 0)))
+        thresholds['File Size'] = max(thresholds['File Size'], extract_numeric_value(req.get('File Size', 0)))
+
+    return thresholds, matched_games
+
+
+def laptop_meets_game_benchmark(row, thresholds):
+    cpu_vendor = get_cpu_vendor(row.get('CPU'))
+    gpu_vendor = get_gpu_vendor(row.get('GPU'))
+
+    if cpu_vendor == 'amd':
+        cpu_req = thresholds['CPU_AMD_score']
+    else:
+        cpu_req = thresholds['CPU_Intel_score']
+
+    if gpu_vendor == 'nvidia':
+        gpu_req = thresholds['GPU_NVIDIA_score']
+    elif gpu_vendor == 'amd':
+        gpu_req = thresholds['GPU_AMD_score']
+    else:
+        gpu_req = thresholds['GPU_Intel_score']
+
+    row_cpu_score = to_python_int(row.get('CPU_score', 0)) or 0
+    row_gpu_score = to_python_int(row.get('GPU_score', 0)) or 0
+    row_ram = extract_numeric_value(row.get('RAM', 0))
+    row_storage = extract_numeric_value(row.get('Storage', 0))
+
+    return (
+        row_cpu_score >= cpu_req and
+        row_gpu_score >= gpu_req and
+        row_ram >= thresholds['RAM'] and
+        row_storage >= thresholds['File Size']
+    )
+
+
+def apply_game_benchmark_filter(df, game_names, min_req_df):
+    if df is None or df.empty or not game_names:
+        return df
+
+    thresholds, matched_games = build_game_benchmark_thresholds(game_names, min_req_df)
+    if not matched_games:
+        return pd.DataFrame()
+
+    filtered = df[df.apply(lambda row: laptop_meets_game_benchmark(row, thresholds), axis=1)].copy()
+    return filtered
 
 
 def apply_cheapest_preference_weights(base_weights: Dict[str, float]) -> Dict[str, float]:
@@ -724,6 +815,15 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             brand=filter_criteria['brand'],
             game_list=filter_criteria['game_list']
         )
+
+        if intent == "FIND_LAPTOP_FOR_GAME" and games:
+            benchmark_filtered_df = apply_game_benchmark_filter(filtered_df, games, min_req_df)
+            if benchmark_filtered_df is not None and not benchmark_filtered_df.empty:
+                filtered_df = benchmark_filtered_df
+                print(f"   ✓ Game benchmark filter: {len(filtered_df)} laptop memenuhi minimum benchmark")
+            else:
+                filtered_df = pd.DataFrame()
+                print("   ⚠️  Tidak ada laptop yang lolos benchmark minimum game.")
         
         # ========== VALIDATION: NO RESULTS HANDLING ==========
         
@@ -739,6 +839,9 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                 brand=filter_criteria['brand'],
                 game_list=filter_criteria['game_list']
             )
+
+            if intent == "FIND_LAPTOP_FOR_GAME" and games:
+                filtered_without_budget = apply_game_benchmark_filter(filtered_without_budget, games, min_req_df)
 
             intent_label = get_intent_label(intent)
             
