@@ -3,6 +3,7 @@ import sys
 import os
 import traceback
 import re
+import importlib
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI, Query, HTTPException
@@ -26,7 +27,17 @@ from src.nlp_pipeline import nlp_pipeline_fuzzy
 from src.smart_filters_and_ahp import apply_smart_filters, get_intent_based_weights
 from src.topsis_engine import run_topsis, get_topsis_summary
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Tuple
+
+try:
+    # Optional accelerated pipeline plugin.
+    # Expected API:
+    # - nlp_pipeline_accelerated(...same args as nlp_pipeline_fuzzy...)
+    # - is_accelerated_nlp_available() -> bool
+    from src.nlp_accelerated import nlp_pipeline_accelerated, is_accelerated_nlp_available
+except Exception:
+    nlp_pipeline_accelerated = None
+    is_accelerated_nlp_available = None
 
 app = FastAPI(title="Laptop Recommendation System API", version="1.0")
 
@@ -46,6 +57,7 @@ class HybridRecommendRequest(BaseModel):
     """Request model for integrated NLP + Phase 1 + Phase 2 recommendation"""
     query: str  # Natural language query, e.g., "mau main hi3rd dengan budget 20jt"
     top_n: int = 5  # Number of recommendations (default 5, max 10)
+    nlp_mode: str = "auto"  # auto | cpu | gpu
 
 class LaptopSpecsResponse(BaseModel):
     """Laptop specifications in response"""
@@ -100,6 +112,130 @@ series_abbreviations = None
 bigram_unique_kb = None
 series_games = None
 brand_models_mapping = None
+
+
+def detect_runtime_acceleration() -> Dict[str, Any]:
+    """Detect optional acceleration capabilities with safe fallbacks."""
+    info = {
+        "torch_installed": False,
+        "cuda_available": False,
+        "accelerated_plugin_available": False,
+    }
+
+    try:
+        torch_spec = importlib.util.find_spec("torch")
+        if torch_spec is not None:
+            info["torch_installed"] = True
+            import torch  # type: ignore
+            info["cuda_available"] = bool(torch.cuda.is_available())
+    except Exception:
+        info["torch_installed"] = False
+        info["cuda_available"] = False
+
+    try:
+        plugin_ok = bool(
+            nlp_pipeline_accelerated is not None
+            and is_accelerated_nlp_available is not None
+            and is_accelerated_nlp_available()
+        )
+        info["accelerated_plugin_available"] = plugin_ok
+    except Exception:
+        info["accelerated_plugin_available"] = False
+
+    return info
+
+
+def resolve_nlp_mode(request_mode: str, accel_info: Dict[str, Any]) -> Tuple[str, Optional[str]]:
+    """Resolve NLP mode with compatibility fallback."""
+    mode = str(request_mode or "auto").strip().lower()
+    if mode not in {"auto", "cpu", "gpu"}:
+        mode = "auto"
+
+    can_use_gpu = bool(accel_info.get("cuda_available")) and bool(accel_info.get("accelerated_plugin_available"))
+
+    if mode == "cpu":
+        return "cpu", None
+
+    if mode == "gpu":
+        if can_use_gpu:
+            return "gpu", None
+        return "cpu", "GPU mode requested but acceleration backend is unavailable. Falling back to CPU NLP."
+
+    # auto mode
+    if can_use_gpu:
+        return "gpu", None
+    return "cpu", None
+
+
+def run_nlp_with_fallback(
+    query: str,
+    game_list: List[str],
+    model_list: List[str],
+    brand_list: List[str],
+    unique_keyword_game_map,
+    abbreviations_kb,
+    alt_titles_kb,
+    series_abbrev,
+    bigram_kb,
+    brand_models_map,
+    requested_mode: str,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Run NLP using selected mode and fallback safely to CPU pipeline."""
+    accel_info = detect_runtime_acceleration()
+    selected_mode, warning = resolve_nlp_mode(requested_mode, accel_info)
+
+    runtime_meta = {
+        "nlp_requested_mode": requested_mode,
+        "nlp_selected_mode": selected_mode,
+        "nlp_warning": warning,
+        "acceleration": accel_info,
+    }
+
+    # Default CPU pipeline is always available and remains source of truth.
+    if selected_mode == "cpu":
+        return nlp_pipeline_fuzzy(
+            query,
+            game_list,
+            model_list,
+            brand_list,
+            unique_keyword_game_map,
+            abbreviations_kb,
+            alt_titles_kb,
+            series_abbrev,
+            bigram_kb,
+            brand_models_map,
+        ), runtime_meta
+
+    # GPU path: attempt accelerated plugin, then fallback to CPU if it fails.
+    try:
+        result = nlp_pipeline_accelerated(
+            query,
+            game_list,
+            model_list,
+            brand_list,
+            unique_keyword_game_map,
+            abbreviations_kb,
+            alt_titles_kb,
+            series_abbrev,
+            bigram_kb,
+            brand_models_map,
+        )
+        return result, runtime_meta
+    except Exception as ex:
+        runtime_meta["nlp_warning"] = f"Accelerated NLP failed ({ex}). Falling back to CPU NLP."
+        runtime_meta["nlp_selected_mode"] = "cpu"
+        return nlp_pipeline_fuzzy(
+            query,
+            game_list,
+            model_list,
+            brand_list,
+            unique_keyword_game_map,
+            abbreviations_kb,
+            alt_titles_kb,
+            series_abbrev,
+            bigram_kb,
+            brand_models_map,
+        ), runtime_meta
 
 # Vendor keyword lists
 CPU_VENDOR_KEYWORDS = {
@@ -423,6 +559,7 @@ async def recommend(
 
 @app.get("/debug")
 async def debug():
+    accel_info = detect_runtime_acceleration()
     return {
         "laptop_df_loaded": laptop_df is not None,
         "min_req_df_loaded": min_req_df is not None,
@@ -437,7 +574,11 @@ async def debug():
         "series_abbreviations_size": len(series_abbreviations) if series_abbreviations else 0,
         "bigram_unique_kb_size": len(bigram_unique_kb) if bigram_unique_kb else 0,
         "series_games_size": len(series_games) if series_games else 0,
-        "brand_models_mapping_keys": list(brand_models_mapping.keys()) if brand_models_mapping else []
+        "brand_models_mapping_keys": list(brand_models_mapping.keys()) if brand_models_mapping else [],
+        "nlp_runtime": {
+            "default_mode": os.getenv("NLP_MODE_DEFAULT", "auto"),
+            "acceleration": accel_info,
+        }
     }
 
 # ============================================================================
@@ -475,8 +616,10 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         
         # ========== NLP PIPELINE: EXTRACT FROM NATURAL LANGUAGE ==========
         
-        # Use NLP pipeline to extract intent, budget, RAM, games, brand from natural language query
-        nlp_result = nlp_pipeline_fuzzy(
+        requested_nlp_mode = request.nlp_mode or os.getenv("NLP_MODE_DEFAULT", "auto")
+
+        # Run NLP via compatibility router (auto/cpu/gpu with safe fallback).
+        nlp_result, nlp_runtime = run_nlp_with_fallback(
             query,
             min_req_df['App'].tolist(),
             laptop_df['Model'].tolist(),
@@ -486,7 +629,8 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             game_alt_titles_kb,
             series_abbreviations,
             bigram_unique_kb,
-            brand_models_mapping
+            brand_models_mapping,
+            requested_nlp_mode,
         )
         
         print(f"🔍 NLP Result:")
@@ -494,10 +638,15 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         print(f"   Games: {nlp_result.get('found_games', [])}")
         print(f"   Laptops/Brand: {nlp_result.get('found_laptops', [])}")
         print(f"   RAM: {nlp_result.get('ram', [])}")
+        print(f"   Game Context: {nlp_result.get('has_game_context', False)}")
+        print(f"   NLP Mode: requested={nlp_runtime.get('nlp_requested_mode')} selected={nlp_runtime.get('nlp_selected_mode')}")
+        if nlp_runtime.get('nlp_warning'):
+            print(f"   ⚠ NLP Warning: {nlp_runtime.get('nlp_warning')}")
         
         # Extract data from NLP result using correct keys
         # Determine intent based on whether games or other keywords were found
         games = nlp_result.get('found_games', [])
+        has_game_context = nlp_result.get('has_game_context', False)
         budget_max = nlp_result.get('budget')  # Will be None if not detected
         ram_min = nlp_result.get('ram', [None])[0] if nlp_result.get('ram') else None  # Get first RAM if any
         brand = nlp_result.get('found_laptops', [None])[0] if nlp_result.get('found_laptops') else None
@@ -507,7 +656,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         if app_intent:
             intent = app_intent  # Use detected app intent (2D_DESIGN, 3D_DESIGN, etc.)
             print(f"   ✓ Application intent detected: {intent}")
-        elif games:
+        elif games or has_game_context:
             intent = "FIND_LAPTOP_FOR_GAME"
         else:
             intent = "FIND_LAPTOP_GENERAL"
@@ -754,4 +903,11 @@ async def recommend_hybrid(request: HybridRecommendRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    accel_info = detect_runtime_acceleration()
+    selected_mode, _ = resolve_nlp_mode(os.getenv("NLP_MODE_DEFAULT", "auto"), accel_info)
+    return {
+        "status": "ok",
+        "nlp_default_mode": os.getenv("NLP_MODE_DEFAULT", "auto"),
+        "nlp_selected_mode": selected_mode,
+        "acceleration": accel_info,
+    }

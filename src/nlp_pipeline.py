@@ -1045,12 +1045,13 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
     
     # Detect application intent (design, AI, web dev, etc.)
     app_intent = detect_application_intent(user_query)
+    has_game_context = has_explicit_game_context(user_query)
 
     found_games = apply_manual_game_aliases(user_query, found_games, game_list)
 
     # If the query is clearly about productivity/design intent and does not
     # explicitly mention gaming context, drop accidental game matches.
-    if app_intent and found_games and not has_explicit_game_context(user_query):
+    if app_intent and found_games and not has_game_context:
         found_games = []
     
     return {
@@ -1060,5 +1061,6 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
         "budget": extracted_budget,
         "ram": extracted_ram,
         "budget_span": budget_span,
-        "app_intent": app_intent  # NEW: Application intent mapping
+        "app_intent": app_intent,  # NEW: Application intent mapping
+        "has_game_context": has_game_context
     }
