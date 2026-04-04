@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import pandas as pd
+from fuzzywuzzy import process
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,6 +16,10 @@ def normalize_benchmark_key(text):
     normalized = re.sub(r'\([^\)]*\)', '', normalized)
     normalized = re.sub(r'[^a-z0-9]+', ' ', normalized)
     return re.sub(r'\s+', ' ', normalized).strip()
+
+
+def extract_digit_groups(text):
+    return set(re.findall(r'\d+', str(text)))
 
 
 def make_benchmark_aliases(text):
@@ -51,8 +56,54 @@ def build_benchmark_lookup(df, model_col, score_col):
     return lookup
 
 
+def resolve_benchmark_score(text, lookup, cache=None, threshold=88):
+    if pd.isna(text):
+        return None
+
+    normalized = normalize_benchmark_key(text)
+    if not normalized:
+        return None
+
+    if cache is not None and normalized in cache:
+        return cache[normalized]
+
+    # 1) Exact alias match.
+    for alias in make_benchmark_aliases(normalized):
+        if alias in lookup:
+            score_val = lookup[alias]
+            if cache is not None:
+                cache[normalized] = score_val
+            return score_val
+
+    # 2) Fuzzy fallback for different naming conventions.
+    candidate_keys = list(lookup.keys())
+    text_digits = extract_digit_groups(normalized)
+    if text_digits:
+        digit_filtered = [key for key in candidate_keys if extract_digit_groups(key) & text_digits]
+        if digit_filtered:
+            candidate_keys = digit_filtered
+        else:
+            if cache is not None:
+                cache[normalized] = None
+            return None
+
+    match = process.extractOne(normalized, candidate_keys, score_cutoff=threshold)
+    if match:
+        matched_key, _ = match
+        score_val = lookup.get(matched_key)
+        if cache is not None:
+            cache[normalized] = score_val
+        return score_val
+
+    if cache is not None:
+        cache[normalized] = None
+    return None
+
+
 def enrich_cpu_gpu_scores(df, cpu_lookup, gpu_lookup, keep_legacy=True):
     df = df.copy()
+    cpu_cache = {}
+    gpu_cache = {}
     if keep_legacy:
         if 'CPU_score' in df.columns and 'Legacy_CPU_score' not in df.columns:
             df['Legacy_CPU_score'] = df['CPU_score']
@@ -62,22 +113,14 @@ def enrich_cpu_gpu_scores(df, cpu_lookup, gpu_lookup, keep_legacy=True):
     if 'CPU' in df.columns:
         cpu_scores = []
         for cpu_name, old_score in zip(df['CPU'], df['CPU_score'] if 'CPU_score' in df.columns else [None] * len(df)):
-            bench_score = None
-            for alias in make_benchmark_aliases(cpu_name):
-                if alias in cpu_lookup:
-                    bench_score = cpu_lookup[alias]
-                    break
+            bench_score = resolve_benchmark_score(cpu_name, cpu_lookup, cache=cpu_cache)
             cpu_scores.append(bench_score if bench_score is not None else old_score)
         df['CPU_score'] = cpu_scores
 
     if 'GPU' in df.columns:
         gpu_scores = []
         for gpu_name, old_score in zip(df['GPU'], df['GPU_score'] if 'GPU_score' in df.columns else [None] * len(df)):
-            bench_score = None
-            for alias in make_benchmark_aliases(gpu_name):
-                if alias in gpu_lookup:
-                    bench_score = gpu_lookup[alias]
-                    break
+            bench_score = resolve_benchmark_score(gpu_name, gpu_lookup, cache=gpu_cache)
             gpu_scores.append(bench_score if bench_score is not None else old_score)
         df['GPU_score'] = gpu_scores
 
@@ -86,6 +129,8 @@ def enrich_cpu_gpu_scores(df, cpu_lookup, gpu_lookup, keep_legacy=True):
 
 def enrich_requirement_scores(df, cpu_lookup, gpu_lookup):
     df = df.copy()
+    cpu_cache = {}
+    gpu_cache = {}
 
     cpu_columns = [
         ('CPU_Intel', 'CPU_Intel_score'),
@@ -102,11 +147,7 @@ def enrich_requirement_scores(df, cpu_lookup, gpu_lookup):
             continue
         new_scores = []
         for spec_name, old_score in zip(df[name_col], df[score_col] if score_col in df.columns else [None] * len(df)):
-            bench_score = None
-            for alias in make_benchmark_aliases(spec_name):
-                if alias in cpu_lookup:
-                    bench_score = cpu_lookup[alias]
-                    break
+            bench_score = resolve_benchmark_score(spec_name, cpu_lookup, cache=cpu_cache)
             new_scores.append(bench_score if bench_score is not None else old_score)
         df[score_col] = new_scores
 
@@ -115,11 +156,7 @@ def enrich_requirement_scores(df, cpu_lookup, gpu_lookup):
             continue
         new_scores = []
         for spec_name, old_score in zip(df[name_col], df[score_col] if score_col in df.columns else [None] * len(df)):
-            bench_score = None
-            for alias in make_benchmark_aliases(spec_name):
-                if alias in gpu_lookup:
-                    bench_score = gpu_lookup[alias]
-                    break
+            bench_score = resolve_benchmark_score(spec_name, gpu_lookup, cache=gpu_cache)
             new_scores.append(bench_score if bench_score is not None else old_score)
         df[score_col] = new_scores
 
