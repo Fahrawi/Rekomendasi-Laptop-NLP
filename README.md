@@ -210,7 +210,8 @@ Prioritas intent di backend:
 
 ### 4. Benchmark checking
 
-Kalau query gaming, sistem membaca minimum requirement dari database game lalu membuang laptop yang tidak memenuhi threshold CPU / GPU minimum.
+Kalau ada target benchmark yang dikenali di query, sistem membaca minimum requirement dari database lalu membuang laptop yang tidak memenuhi threshold CPU / GPU minimum.
+Ini berlaku bukan hanya untuk query yang eksplisit bilang gaming, tetapi untuk semua query yang membawa target aplikasi/game yang punya data benchmark.
 
 ### 5. AHP weighting
 

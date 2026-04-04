@@ -1121,11 +1121,6 @@ def nlp_pipeline_fuzzy(user_query, game_list, laptop_list, laptop_brand_list,
 
     found_games = apply_manual_game_aliases(user_query, found_games, game_list)
 
-    # If the query is clearly about productivity/design intent and does not
-    # explicitly mention gaming context, drop accidental game matches.
-    if app_intent and found_games and not has_game_context:
-        found_games = []
-    
     return {
         "tokens": tokens,
         "found_games": found_games,

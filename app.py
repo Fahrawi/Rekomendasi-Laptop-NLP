@@ -811,10 +811,6 @@ async def recommend_hybrid(request: HybridRecommendRequest):
         else:
             intent = "FIND_LAPTOP_GENERAL"
 
-        # Safety net: only keep game list when final intent is gaming.
-        if intent != "FIND_LAPTOP_FOR_GAME":
-            games = []
-        
         print(f"   Intent (auto-detected): {intent}")
         
         # Convert brand to uppercase if present
@@ -848,7 +844,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             game_list=filter_criteria['game_list']
         )
 
-        if intent == "FIND_LAPTOP_FOR_GAME" and games:
+        if games:
             benchmark_filtered_df = apply_game_benchmark_filter(filtered_df, games, min_req_df)
             if benchmark_filtered_df is not None and not benchmark_filtered_df.empty:
                 filtered_df = benchmark_filtered_df
@@ -872,7 +868,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                 game_list=filter_criteria['game_list']
             )
 
-            if intent == "FIND_LAPTOP_FOR_GAME" and games:
+            if games:
                 filtered_without_budget = apply_game_benchmark_filter(filtered_without_budget, games, min_req_df)
 
             intent_label = get_intent_label(intent)
@@ -898,7 +894,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                         f"Laptop termurah untuk intent ini mulai dari Rp {min_price_for_intent:,.0f}."
                     )
             
-            if games and intent == "FIND_LAPTOP_FOR_GAME":
+            if games:
                 # Games were requested - check if any laptop can handle minimum requirements
                 app_reqs = min_req_df[min_req_df['App'].str.lower().isin([g.lower() for g in games])]
                 if not app_reqs.empty:
