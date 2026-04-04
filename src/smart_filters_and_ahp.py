@@ -11,7 +11,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 
 
 # =============================================================================
@@ -21,10 +21,10 @@ from typing import Dict, Tuple
 def apply_smart_filters(
     df: pd.DataFrame,
     intent: str,
-    budget: Tuple[int, int] = None,
-    ram: int = None,
-    brand: str = None,
-    game_list: list = None
+    budget: Optional[Tuple[int, int]] = None,
+    ram: Optional[int] = None,
+    brand: Optional[str] = None,
+    game_list: Optional[list] = None
 ) -> pd.DataFrame:
     """
     Apply Rule-Based Reasoning (RBR) untuk filter laptop berdasarkan intent pengguna.
@@ -328,9 +328,13 @@ def apply_smart_filters(
     
     if remaining_count == 0:
         print("   ⚠️ Warning: No laptops match all criteria. Returning all data.")
-        return df.copy()
+        return df.reset_index(drop=True)
     
-    return df_filtered.reset_index(drop=True)
+    # Ensure we return DataFrame, not Series
+    if isinstance(df_filtered, pd.DataFrame):
+        return df_filtered.reset_index(drop=True)
+    else:
+        return df.reset_index(drop=True)
 
 
 # =============================================================================
