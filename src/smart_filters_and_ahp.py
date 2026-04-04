@@ -55,6 +55,24 @@ def apply_smart_filters(
     
     rbr_rules = {
         # =====================================================================
+        # 0. GENERAL PURPOSE (Default fallback for unknown intents)
+        # =====================================================================
+        # Alasan: General use case untuk productivity, browsing, office work.
+        # Balanced specs dengan prioritas pada harga dan availability.
+        # CPU moderate, GPU OK (integrated) untuk smoothness, RAM 8GB untuk multitasking.
+        "FIND_LAPTOP_GENERAL": {
+            "min_ram_gb": 8,
+            "recommended_ram_gb": 16,
+            "min_cpu_score": 40,  # i5/Ryzen 5 or better
+            "min_gpu_score": 0,   # Integrated GPU OK
+            "min_storage_gb": 256,  # SSD for responsiveness
+            "preferred_storage_type": "SSD",
+            "cpu_preference": ["intel", "amd"],
+            "gpu_preference": "any",  # Integrated or dedicated
+            "description": "General purpose: Balanced specs, productivity focus"
+        },
+        
+        # =====================================================================
         # 1. GAMING
         # =====================================================================
         # Alasan: Gaming membutuhkan GPU dedicated yang kuat, CPU multi-core untuk
