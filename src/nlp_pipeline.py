@@ -235,6 +235,23 @@ def find_best_match(token, candidates, threshold=0.85):
 
 def extract_text_budget(query):
     query_lower = query.lower()
+    
+    # ===== NUMERIC BUDGET EXTRACTION (20000000 or 20.000.000 format) =====
+    numeric_pattern = r'(?:rp|budget|harga|sekitar)?\s*(\d{1,3}(?:[.,]\d{3})*)\s*(?:ribu|rbu|rb|jt|juta)?'
+    numeric_match = re.search(numeric_pattern, query_lower, re.IGNORECASE)
+    if numeric_match:
+        numeric_str = numeric_match.group(1).replace('.', '').replace(',', '')
+        try:
+            numeric_val = int(numeric_str)
+            # If it looks like a price (too small), assume it's in thousands or its original value
+            if numeric_val > 100000:  # Likely already in full rupiah (>100k)
+                return numeric_val, numeric_match.span(0)
+            elif numeric_val > 1000:  # Could be in thousands
+                return (numeric_val * 1000), numeric_match.span(0)
+        except (ValueError, AttributeError):
+            pass
+    
+    # ===== TEXT-BASED BUDGET EXTRACTION =====
     pattern_range = r'(?:harga|rp|budget|sekitar|harga sekitar|budget sekitar|rp\s*:?)\s*([a-z\s]+?)\s*(?:sampai|hingga|-)\s*([a-z\s]+?)\s*(ribu|rbu|rb|jt|juta)'
     pattern_single = r'(?:harga|rp|budget|sekitar|harga sekitar|budget sekitar|rp\s*:?)\s*([a-z\s]+?)\s*(ribu|rbu|rb|jt|juta)'
     pattern_range_no_keyword = r'(\b(?:[a-z]+\s)+?)\s*(?:sampai|hingga|-)\s*(\b(?:[a-z]+\s)+?)\s*(ribu|rbu|rb|jt|juta)\b'

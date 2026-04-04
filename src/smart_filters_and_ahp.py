@@ -327,8 +327,8 @@ def apply_smart_filters(
     print(f"\n   📊 Filtering Result: {remaining_count} / {original_count} laptops match criteria\n")
     
     if remaining_count == 0:
-        print("   ⚠️ Warning: No laptops match all criteria. Returning all data.")
-        return df.reset_index(drop=True)
+        print("   ⚠️  No laptops match all criteria. Returning empty dataframe.")
+        return pd.DataFrame()  # Return empty dataframe instead of all data
     
     # Ensure we return DataFrame, not Series
     if isinstance(df_filtered, pd.DataFrame):

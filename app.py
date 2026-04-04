@@ -503,7 +503,33 @@ async def recommend_hybrid(request: HybridRecommendRequest):
             game_list=filter_criteria['game_list']
         )
         
+        # ========== VALIDATION: NO RESULTS HANDLING ==========
+        
         if filtered_df is None or filtered_df.empty:
+            # Provide detailed error message based on what was requested
+            error_message = "Tidak ada laptop yang sesuai dengan kriteria Anda."
+            
+            if budget_max:
+                # Budget was specified but no results
+                min_laptop_price = laptop_df['Final Price'].min()
+                error_message = f"⚠️  Budget terlalu kecil (Rp {budget_max:,}). Laptop termurah tersedia Rp {min_laptop_price:,.0f}."
+            
+            if games:
+                # Games were requested - check if any laptop can handle minimum requirements
+                app_reqs = min_req_df[min_req_df['App'].str.lower().isin([g.lower() for g in games])]
+                if not app_reqs.empty:
+                    # Get minimum specs from game requirements
+                    error_message += f"\n\n📋 Spesifikasi minimum diperlukan:"
+                    for _, req in app_reqs.iterrows():
+                        error_message += f"\n  • {req['App']}: CPU {req['CPU']}, GPU {req['GPU']}, RAM {req['RAM']} GB"
+                    
+                    # Check if ANY laptop in entire dataset meets the requirements
+                    min_gpu_req = app_reqs['GPU'].iloc[0] if not app_reqs.empty else None
+                    if min_gpu_req:
+                        min_gpu_laptops = laptop_df[laptop_df['GPU'].notna()].shape[0]
+                        if min_gpu_laptops > 0:
+                            error_message += f"\n\n💡 Tips: Tingkatkan budget untuk mendapatkan laptop dengan spesifikasi yang memenuhi kebutuhan game."
+            
             return HybridRecommendResponse(
                 status="success",
                 intent=intent,
@@ -511,7 +537,7 @@ async def recommend_hybrid(request: HybridRecommendRequest):
                 ranked_count=0,
                 weights_applied={},
                 recommendations=[],
-                message="Tidak ada laptop yang sesuai dengan kriteria Anda."
+                message=error_message
             )
         
         filtered_count = len(filtered_df)
